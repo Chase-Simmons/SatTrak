@@ -3,16 +3,14 @@
 import dynamic from "next/dynamic";
 
 // Dynamically import CesiumViewer with SSR disabled because it relies on 'window'
-const CesiumViewer = dynamic(() => import("@/components/CesiumViewer"), {
+const Globe = dynamic(() => import("@/components/Globe"), {
   ssr: false,
 });
 
 export default function Home() {
   return (
-    <main className="flex min-h-screen flex-col items-center justify-between">
-      <div className="w-full h-screen">
-        <CesiumViewer />
-      </div>
+    <main className="w-screen h-screen overflow-hidden bg-black">
+      <Globe />
     </main>
   );
 }
