@@ -1,8 +1,8 @@
 "use client";
 
-import React, { useMemo } from "react";
+import React, { useMemo, useRef, useEffect, useState } from "react";
 import { useFrame } from "@react-three/fiber";
-import { Vector3, Color } from "three";
+import { Vector3 } from "three";
 import { Line } from "@react-three/drei";
 import * as satellite from "satellite.js";
 import { useSatelliteStore } from "../hooks/useSatelliteStore";
@@ -12,20 +12,16 @@ const satLib = satellite as any;
 
 const SCALE_FACTOR = 1 / 1000;
 
-const OrbitPath = () => {
-    const { tles, selectedSatId } = useSatelliteStore();
-    
-    // Find selected TLE
-    const selectedTle = useMemo(() => {
-        if (!selectedSatId) return null;
-        return tles.find(t => t.id === selectedSatId);
-    }, [tles, selectedSatId]);
+interface SingleOrbitLineProps {
+    satellite: any; // TLE object
+}
 
+const SingleOrbitLine = ({ satellite }: SingleOrbitLineProps) => {
     // State to trigger re-calculation
-    const [refreshKey, setRefreshKey] = React.useState(0);
+    const [refreshKey, setRefreshKey] = useState(0);
 
     // Refresh orbit path periodically to keep it in sync
-    React.useEffect(() => {
+    useEffect(() => {
         const interval = setInterval(() => {
             setRefreshKey(k => k + 1);
         }, 5000); // 5 seconds
@@ -34,9 +30,8 @@ const OrbitPath = () => {
 
     // Calculate Path Points
     const { points, currentSatRec } = useMemo(() => {
-        if (!selectedTle) return { points: [], currentSatRec: null };
-
-        const rec = satLib.twoline2satrec(selectedTle.line1, selectedTle.line2);
+        if (!satellite) return { points: [], currentSatRec: null };
+        const rec = satLib.twoline2satrec(satellite.line1, satellite.line2);
         const pts: Vector3[] = [];
         
         // Determine orbital period or just do a fixed slice.
@@ -62,10 +57,10 @@ const OrbitPath = () => {
         }
 
         return { points: pts, currentSatRec: rec };
-    }, [selectedTle, refreshKey]);
+    }, [satellite, refreshKey]);
 
     // Current Position Marker (Highlight)
-    const markerRef = React.useRef<any>(null);
+    const markerRef = useRef<any>(null);
 
     useFrame(() => {
         if (!currentSatRec || !markerRef.current) return;
@@ -80,7 +75,7 @@ const OrbitPath = () => {
         }
     });
 
-    if (!selectedTle) return null;
+    if (!satellite) return null;
 
     return (
         <group>
@@ -104,6 +99,26 @@ const OrbitPath = () => {
                 <sphereGeometry args={[0.04, 16, 16]} />
                 <meshBasicMaterial color="#ffffff" />
             </mesh>
+        </group>
+    );
+};
+
+const OrbitPath = () => {
+    const { tles, selectedIds, showOrbits } = useSatelliteStore();
+    
+    // Memoize the list of selected TLE objects
+    const selectedSats = useMemo(() => {
+        if (!selectedIds || !selectedIds.length) return [];
+        return tles.filter(t => selectedIds.includes(t.id));
+    }, [tles, selectedIds]);
+
+    if (!showOrbits || selectedSats.length === 0) return null;
+
+    return (
+        <group>
+            {selectedSats.map(sat => (
+                <SingleOrbitLine key={sat.id} satellite={sat} />
+            ))}
         </group>
     );
 };

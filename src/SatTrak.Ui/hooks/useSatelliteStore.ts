@@ -10,9 +10,18 @@ export interface SatelliteTle {
 interface SatelliteStore {
     tles: SatelliteTle[];
     loading: boolean;
-    // Selection & filtering
-    selectedSatId: number | null;
-    setSelectedSatId: (id: number | null) => void;
+    
+    // Multi-Selection
+    selectedIds: number[];
+    toggleSelection: (id: number) => void;
+    clearSelection: () => void;
+    selectMultiple: (ids: number[]) => void;
+
+    // View Options
+    showOrbits: boolean;
+    showLabels: boolean;
+    setShowOrbits: (show: boolean) => void;
+    setShowLabels: (show: boolean) => void;
     
     searchQuery: string;
     setSearchQuery: (q: string) => void;
@@ -23,9 +32,26 @@ interface SatelliteStore {
 export const useSatelliteStore = create<SatelliteStore>((set) => ({
     tles: [],
     loading: false,
-    selectedSatId: null,
+    
+    selectedIds: [],
+    showOrbits: true,
+    showLabels: true,
     searchQuery: "",
-    setSelectedSatId: (id) => set({ selectedSatId: id }),
+
+    toggleSelection: (id) => set((state) => {
+        const exists = state.selectedIds.includes(id);
+        return {
+             selectedIds: exists 
+                ? state.selectedIds.filter(sid => sid !== id)
+                : [...state.selectedIds, id]
+        };
+    }),
+    clearSelection: () => set({ selectedIds: [] }),
+    selectMultiple: (ids) => set({ selectedIds: ids }),
+
+    setShowOrbits: (val) => set({ showOrbits: val }),
+    setShowLabels: (val) => set({ showLabels: val }),
+
     setSearchQuery: (q) => set({ searchQuery: q }),
 
     fetchTles: async () => {

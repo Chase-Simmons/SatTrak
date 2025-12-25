@@ -1,6 +1,8 @@
 "use client";
 
 import React, { useMemo, useRef, useState } from "react";
+import { AltitudeLogic, AltitudeOverlay } from "./AltitudeIndicator";
+import SatelliteLabels from "./SatelliteLabels";
 import { Canvas, useThree } from "@react-three/fiber";
 import { OrbitControls, Stars } from "@react-three/drei";
 import { Vector3 } from "three";
@@ -9,68 +11,7 @@ import SatelliteInstanced from "./SatelliteInstanced";
 import SatellitePanel from "./SatellitePanel";
 import OrbitPath from "./OrbitPath";
 import DistanceGrid from "./DistanceGrid";
-import { AltitudeLogic, AltitudeOverlay } from "./AltitudeIndicator";
 import * as THREE from "three";
-
-// Helper to bridge camera control to outside button
-const CameraController = ({ resetRef, onReady }: { resetRef: React.MutableRefObject<() => void>, onReady?: () => void }) => {
-    const { camera, controls } = useThree();
-    
-    React.useEffect(() => {
-        resetRef.current = () => {
-            camera.position.set(20, 35, 55);
-            camera.lookAt(0, 0, 0);
-            const ctrl = (controls as any);
-            if (ctrl) {
-                ctrl.target.set(0, 0, 0);
-                ctrl.update();
-            }
-        };
-
-        // Initial setup
-        resetRef.current();
-        
-        // Signal ready after a delay to ensure matrices update
-        if (onReady) {
-            setTimeout(() => onReady(), 50); 
-        }
-
-    }, [camera, controls, resetRef, onReady]);
-
-    return null;
-};
-
-const ResetButton = ({ resetCallback }: { resetCallback: React.RefObject<() => void> }) => {
-    return (
-        <div style={{
-            position: 'absolute',
-            bottom: '2rem',
-            left: '50%',
-            transform: 'translateX(-50%)',
-            zIndex: 40,
-            pointerEvents: 'auto'
-        }}>
-            <button 
-                onClick={() => resetCallback.current && resetCallback.current()}
-                style={{
-                    background: 'rgba(22, 78, 99, 0.8)', 
-                    color: '#cffafe', 
-                    padding: '8px 24px', 
-                    borderRadius: '4px', 
-                    border: '1px solid rgba(6, 182, 212, 0.5)', 
-                    fontFamily: 'monospace',
-                    letterSpacing: '0.05em',
-                    boxShadow: '0 0 15px rgba(8,145,178,0.4)',
-                    cursor: 'pointer',
-                    textTransform: 'uppercase',
-                    backdropFilter: 'blur(4px)'
-                }}
-            >
-                RESET VIEW
-            </button>
-        </div>
-    );
-};
 
 const EARTH_RADIUS = 6.371; // Normalized radius for visualization
 
@@ -184,11 +125,21 @@ const Graticule = () => {
     );
 };
 
+// Helper to signal when Canvas children are mounted
+const SceneReady = ({ onReady }: { onReady: (r: boolean) => void }) => {
+    React.useLayoutEffect(() => {
+        onReady(true);
+    }, [onReady]);
+    return null;
+}
+
 const Globe = () => {
     // const { satellites, connectionStatus } = useSatelliteStream(); // Legacy SignalR
-    const { fetchTles, tles, loading } = useSatelliteStore();
+    const fetchTles = useSatelliteStore(state => state.fetchTles);
+    const tles = useSatelliteStore(state => state.tles);
+    const loading = useSatelliteStore(state => state.loading);
+    
     const earthRef = React.useRef<THREE.Mesh>(null);
-    const resetRef = useRef<() => void>(() => {});
     const [sceneReady, setSceneReady] = useState(false);
     
     // Altitude HUD Refs
@@ -218,7 +169,6 @@ const Globe = () => {
 
             {/* UI Overlays (Outside Canvas) */}
             <SatellitePanel />
-            <ResetButton resetCallback={resetRef} />
             <AltitudeOverlay barRef={altBarRef} textRef={altTextRef} />
 
             <Canvas camera={{ position: [20, 35, 55], fov: 45 }}>
@@ -239,19 +189,20 @@ const Globe = () => {
                 <WorldLines />
                 
                 {/* Stars Background */}
-                <Stars radius={100} depth={50} count={5000} factor={4} saturation={0} fade speed={1} />
+                <Stars radius={100} depth={50} count={2000} factor={4} saturation={0} fade speed={1} />
 
                 {/* Distance Grid - Only render after camera is positioned */}
                 {sceneReady && <DistanceGrid earthRef={earthRef} />}
+                <SceneReady onReady={setSceneReady} />
 
                 {/* Instanced Satellites */}
                 <SatelliteInstanced />
 
                 {/* Selected Orbit Path */}
                 <OrbitPath />
+                <SatelliteLabels />
 
                 {/* Logic Components */}
-                <CameraController resetRef={resetRef} onReady={() => setSceneReady(true)} />
                 <AltitudeLogic barRef={altBarRef} textRef={altTextRef} />
 
                 <OrbitControls 

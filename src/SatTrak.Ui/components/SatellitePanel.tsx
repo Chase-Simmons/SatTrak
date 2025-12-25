@@ -5,31 +5,63 @@ import { useSatelliteStore } from '../hooks/useSatelliteStore';
 import styles from './SatellitePanel.module.css';
 
 const SatellitePanel = () => {
-    const { tles, searchQuery, setSearchQuery, selectedSatId, setSelectedSatId } = useSatelliteStore();
+    const { 
+        tles, 
+        searchQuery, 
+        setSearchQuery, 
+        selectedIds, 
+        toggleSelection, 
+        clearSelection,
+        showOrbits,
+        showLabels,
+        setShowOrbits,
+        setShowLabels
+    } = useSatelliteStore();
+    
     const [visibleCount, setVisibleCount] = React.useState(100);
     const [isOpen, setIsOpen] = React.useState(true);
 
-    // Filter Logic
-    const filteredSats = useMemo(() => {
-        let result = tles;
+    // Grouping by Common Constellations
+    const quickFilters = ["Starlink", "GPS", "GLONASS", "IRIDIUM", "NOAA", "GOES"];
+
+    // 1. Separate Selected (Pinned) vs Search Results
+    const { selectedSats, filteredSats } = useMemo(() => {
+        // A. Identify Selected Objects (Pinned)
+        const selected = tles.filter(s => selectedIds.includes(s.id));
+        
+        // B. Identify Search Results (Excluding already selected ones to avoid duplicates?)
+        //    User said: "if a user unselects ... it should render as it normal would"
+        //    So we should probably dedup in the render list or just keep them separate.
+        //    Let's keep them conceptually separate lists but merge for display.
+        
+        let filtered = tles;
         if (searchQuery.trim().length > 0) {
             const lowQ = searchQuery.toLowerCase();
-            result = result.filter(s => {
+            filtered = filtered.filter(s => {
                 const name = s.name ? s.name.toLowerCase() : "";
                 const id = s.id.toString();
                 return name.includes(lowQ) || id.includes(lowQ);
             });
         }
-        return result;
-    }, [tles, searchQuery]);
+        
+        // Exclude selected from filtered to prevent duplicates in the list if we just concat
+        // actually, standard pattern is to show them at top.
+        const filteredUnselected = filtered.filter(s => !selectedIds.includes(s.id));
 
-    // Reset visible count when search changes
-    React.useEffect(() => {
-        setVisibleCount(100);
-    }, [searchQuery]);
+        return { selectedSats: selected, filteredSats: filteredUnselected };
+    }, [tles, searchQuery, selectedIds]);
 
-    // Grouping by Common Constellations
-    const quickFilters = ["Starlink", "GPS", "GLONASS", "IRIDIUM", "NOAA", "GOES"];
+    // Combined List for Display
+    // Order: Selected (Pinned) -> Filtered Results
+    const displayList = useMemo(() => {
+        return [...selectedSats, ...filteredSats];
+    }, [selectedSats, filteredSats]);
+
+    // Reset pagination when search *or selection* changes significantly? 
+    // Actually, if we pin 10 items, they should just be at top. Pagination applies to the REST.
+    // Ideally we paginate the `displayList`.
+    
+    const paginatedList = displayList.slice(0, visibleCount);
 
     return (
         <div 
@@ -101,40 +133,73 @@ const SatellitePanel = () => {
                         </button>
                     )}
                 </div>
+
+                {/* View Settings & Selection Actions */}
+                <div style={{ marginTop: '1rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '11px', color: '#94a3b8' }}>
+                    <div style={{ display: 'flex', gap: '8px' }}>
+                        <label style={{ display: 'flex', alignItems: 'center', gap: '4px', cursor: 'pointer' }}>
+                            <input 
+                                type="checkbox" 
+                                checked={showOrbits} 
+                                onChange={(e) => setShowOrbits(e.target.checked)} 
+                            />
+                            SHOW ORBITS
+                        </label>
+                        <label style={{ display: 'flex', alignItems: 'center', gap: '4px', cursor: 'pointer' }}>
+                            <input 
+                                type="checkbox" 
+                                checked={showLabels} 
+                                onChange={(e) => setShowLabels(e.target.checked)} 
+                            />
+                            SHOW LABELS
+                        </label>
+                    </div>
+                    {selectedIds.length > 0 && (
+                        <button 
+                            onClick={() => clearSelection()}
+                            style={{ background: 'none', border: 'none', color: '#f87171', cursor: 'pointer', textDecoration: 'underline' }}
+                        >
+                            CLEAR SELECTION ({selectedIds.length})
+                        </button>
+                    )}
+                </div>
             </div>
 
             {/* List */}
             <div className={styles.listContainer}>
-                {filteredSats.length === 0 ? (
+                {displayList.length === 0 ? (
                     <div className={styles.emptyState}>
                         No satellites found matching "{searchQuery}".
                     </div>
                 ) : (
                     <div>
-                        {filteredSats.slice(0, visibleCount).map(sat => {
-                            // Fallback name if missing
+                        {paginatedList.map(sat => {
                             const displayName = sat.name && sat.name !== "Unknown" ? sat.name : `SAT-${sat.id}`;
-                            const isSelected = selectedSatId === sat.id;
+                            const isSelected = selectedIds.includes(sat.id);
 
                             return (
                                 <div 
                                     key={sat.id}
-                                    onClick={() => setSelectedSatId(sat.id)}
+                                    onClick={() => toggleSelection(sat.id)}
                                     className={`${styles.listItem} ${isSelected ? styles.listItemSelected : ''}`}
+                                    style={{ display: 'flex', alignItems: 'center', gap: '10px' }}
                                 >
-                                    <span className={styles.itemName}>{displayName}</span>
-                                    <span className={styles.itemId}>#{sat.id}</span>
+                                    <div style={{ flex: 1 }}>
+                                        <span className={styles.itemName}>{displayName}</span>
+                                        <span className={styles.itemId}>#{sat.id}</span>
+                                    </div>
+                                    {isSelected && <span style={{ fontSize: '10px', color: '#22d3ee' }}>PINNED</span>}
                                 </div>
                             );
                         })}
                         
-                        {filteredSats.length > visibleCount && (
+                        {displayList.length > visibleCount && (
                             <div 
                                 className={styles.moreIndicator}
                                 onClick={() => setVisibleCount(c => c + 100)}
                                 style={{ cursor: 'pointer', color: '#06b6d4' }}
                             >
-                                + {filteredSats.length - visibleCount} MORE OBJECTS (CLICK TO LOAD)
+                                + {displayList.length - visibleCount} MORE OBJECTS (CLICK TO LOAD)
                             </div>
                         )}
                     </div>

@@ -158,7 +158,7 @@
 
 .listItemSelected .itemName {
     color: #22d3ee;
-    text-shadow: 0 0 10px rgba(34, 211, 238, 0.4);
+    text-shadow: 0 0 4px rgba(34, 211, 238, 0.3);
 }
 
 .itemId {

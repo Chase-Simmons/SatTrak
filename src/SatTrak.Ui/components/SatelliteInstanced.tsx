@@ -14,23 +14,25 @@ const SCALE_FACTOR = 1 / 1000;
 const EARTH_RADIUS_VIEW = 6.371;
 
 const SatelliteInstanced = () => {
-    const { tles, searchQuery } = useSatelliteStore();
+    const { tles, searchQuery, selectedIds } = useSatelliteStore();
     const meshRef = useRef<InstancedMesh>(null);
     const tempObject = useMemo(() => new Object3D(), []);
+
+    // Optimized lookup for selection
+    const selectedSet = useMemo(() => new Set(selectedIds), [selectedIds]);
 
     // Parse TLEs into SatRecords (Filtered)
     const satRecords = useMemo(() => {
         let list = tles;
         if (searchQuery.trim().length > 0) {
-            const upQ = searchQuery.toUpperCase(); // Optim: most satellite names are UPPERCASE
-             // Fallback to simpler check for perf on 27k items
+            const upQ = searchQuery.toUpperCase(); 
             list = list.filter(t => t.name.includes(upQ) || t.id.toString().includes(upQ));
         }
 
         return list.map(tle => ({
             id: tle.id,
             rec: satLib.twoline2satrec(tle.line1, tle.line2)
-        })).filter(s => s.rec); // Ensure valid records
+        })).filter(s => s.rec); 
     }, [tles, searchQuery]);
 
     const color = useMemo(() => new Color(), []);
@@ -59,22 +61,28 @@ const SatelliteInstanced = () => {
 
                 tempObject.position.set(x, y, z);
 
-                // Color & Scale by Altitude
-                // ECI position vector magnitude in km
-                const rKm = Math.sqrt(pos.x*pos.x + pos.y*pos.y + pos.z*pos.z);
-                const altKm = rKm - EARTH_RADIUS_KM;
+                const isSelected = selectedSet.has(sat.id);
 
+                // Color & Scale
                 let scale = 1.0;
-
-                if (altKm < 2000) {
-                    color.setHex(0x00ff00); // LEO: Green
-                    scale = 1.0;
-                } else if (altKm < 30000) {
-                    color.setHex(0x00ffff); // MEO: Cyan
-                    scale = 1.5; // Make MEO larger
+                
+                if (isSelected) {
+                    color.setHex(0xffffff); // Selected: Bright White
+                    scale = 4.0;            // Selected: Very Large
                 } else {
-                    color.setHex(0xff0000); // GEO: Red
-                    scale = 2.0; // Make GEO largest
+                    const rKm = Math.sqrt(pos.x*pos.x + pos.y*pos.y + pos.z*pos.z);
+                    const altKm = rKm - EARTH_RADIUS_KM;
+
+                    if (altKm < 2000) {
+                        color.setHex(0x00ff00); // LEO: Green
+                        scale = 1.0;
+                    } else if (altKm < 30000) {
+                        color.setHex(0x00ffff); // MEO: Cyan
+                        scale = 1.5; 
+                    } else {
+                        color.setHex(0xff0000); // GEO: Red
+                        scale = 2.0; 
+                    }
                 }
                 
                 tempObject.scale.setScalar(scale); 
