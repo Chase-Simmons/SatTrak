@@ -1,0 +1,79 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TestRun id="a906ea69-1a4b-4d48-854e-a4bd78bdadd4" name="Csim6@DEUT 2025-12-24 21:16:35" runUser="DEUT\Csim6" xmlns="http://microsoft.com/schemas/VisualStudio/TeamTest/2010">
+  <Times creation="2025-12-24T21:16:35.9494244-06:00" queuing="2025-12-24T21:16:35.9494247-06:00" start="2025-12-24T21:16:35.1966170-06:00" finish="2025-12-24T21:16:35.9635870-06:00" />
+  <TestSettings name="default" id="bc032f70-7373-4539-b7f1-c97406fbb529">
+    <Deployment runDeploymentRoot="Csim6_DEUT_2025-12-24_21_16_35" />
+  </TestSettings>
+  <Results>
+    <UnitTestResult executionId="0485618a-19a8-46ee-b7f9-c46409dfcfc8" testId="235622a4-f71d-86e1-89f3-1c619cc900f3" testName="SatTrak.Tests.Services.PropagatorServiceTests.Propagate_InvalidTLE_ThrowsArgumentException" computerName="DEUT" duration="00:00:00.0043676" startTime="2025-12-24T21:16:35.8454996-06:00" endTime="2025-12-24T21:16:35.8496036-06:00" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Passed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="0485618a-19a8-46ee-b7f9-c46409dfcfc8" />
+    <UnitTestResult executionId="79d5a635-a0f6-413d-a6aa-8f6dc9f95b39" testId="f8ff0a34-dba5-2564-9a34-35b1303d752f" testName="SatTrak.Tests.Domain.Vector3DTests.Constructor_SetsPropertiesCorrectly" computerName="DEUT" duration="00:00:00.0072643" startTime="2025-12-24T21:16:35.7771032-06:00" endTime="2025-12-24T21:16:35.7919260-06:00" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Passed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="79d5a635-a0f6-413d-a6aa-8f6dc9f95b39" />
+    <UnitTestResult executionId="020a9002-64ad-4a84-8aa6-626836d13454" testId="0dad7f4f-e965-e90b-3f23-6b416ffd1c81" testName="SatTrak.Tests.Services.PropagatorServiceTests.Propagate_ValidTLE_ReturnsState" computerName="DEUT" duration="00:00:00.0654821" startTime="2025-12-24T21:16:35.7783325-06:00" endTime="2025-12-24T21:16:35.8451281-06:00" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Passed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="020a9002-64ad-4a84-8aa6-626836d13454" />
+    <UnitTestResult executionId="29993cae-e051-493d-b0cc-a5dffc87aa90" testId="947b9a3d-0cde-d4f9-910c-73b97ed1c4a7" testName="SatTrak.Tests.Domain.Vector3DTests.ToString_FormatsCorrectly" computerName="DEUT" duration="00:00:00.0112409" startTime="2025-12-24T21:16:35.8039462-06:00" endTime="2025-12-24T21:16:35.8133128-06:00" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Failed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="29993cae-e051-493d-b0cc-a5dffc87aa90">
+      <Output>
+        <ErrorInfo>
+          <Message>Assert.Equal() Failure: Strings differ&#xD;
+                ↓ (pos 5)&#xD;
+Expected: "(1.235, 5.679, 9.012)"&#xD;
+Actual:   "(1.234, 5.679, 9.012)"&#xD;
+                ↑ (pos 5)</Message>
+          <StackTrace>   at SatTrak.Tests.Domain.Vector3DTests.ToString_FormatsCorrectly() in C:\Users\Csim6\source\repos\SatTrak\src\SatTrak.Tests\Domain\Vector3DTests.cs:line 35&#xD;
+   at System.Reflection.MethodBaseInvoker.InterpretedInvoke_Method(Object obj, IntPtr* args)&#xD;
+   at System.Reflection.MethodBaseInvoker.InvokeWithNoArgs(Object obj, BindingFlags invokeAttr)</StackTrace>
+        </ErrorInfo>
+      </Output>
+    </UnitTestResult>
+  </Results>
+  <TestDefinitions>
+    <UnitTest name="SatTrak.Tests.Services.PropagatorServiceTests.Propagate_ValidTLE_ReturnsState" storage="c:\users\csim6\source\repos\sattrak\src\sattrak.tests\bin\debug\net10.0\sattrak.tests.dll" id="0dad7f4f-e965-e90b-3f23-6b416ffd1c81">
+      <Execution id="020a9002-64ad-4a84-8aa6-626836d13454" />
+      <TestMethod codeBase="C:\Users\Csim6\source\repos\SatTrak\src\SatTrak.Tests\bin\Debug\net10.0\SatTrak.Tests.dll" adapterTypeName="executor://xunit/VsTestRunner3/netcore/" className="SatTrak.Tests.Services.PropagatorServiceTests" name="Propagate_ValidTLE_ReturnsState" />
+    </UnitTest>
+    <UnitTest name="SatTrak.Tests.Domain.Vector3DTests.Constructor_SetsPropertiesCorrectly" storage="c:\users\csim6\source\repos\sattrak\src\sattrak.tests\bin\debug\net10.0\sattrak.tests.dll" id="f8ff0a34-dba5-2564-9a34-35b1303d752f">
+      <Execution id="79d5a635-a0f6-413d-a6aa-8f6dc9f95b39" />
+      <TestMethod codeBase="C:\Users\Csim6\source\repos\SatTrak\src\SatTrak.Tests\bin\Debug\net10.0\SatTrak.Tests.dll" adapterTypeName="executor://xunit/VsTestRunner3/netcore/" className="SatTrak.Tests.Domain.Vector3DTests" name="Constructor_SetsPropertiesCorrectly" />
+    </UnitTest>
+    <UnitTest name="SatTrak.Tests.Domain.Vector3DTests.ToString_FormatsCorrectly" storage="c:\users\csim6\source\repos\sattrak\src\sattrak.tests\bin\debug\net10.0\sattrak.tests.dll" id="947b9a3d-0cde-d4f9-910c-73b97ed1c4a7">
+      <Execution id="29993cae-e051-493d-b0cc-a5dffc87aa90" />
+      <TestMethod codeBase="C:\Users\Csim6\source\repos\SatTrak\src\SatTrak.Tests\bin\Debug\net10.0\SatTrak.Tests.dll" adapterTypeName="executor://xunit/VsTestRunner3/netcore/" className="SatTrak.Tests.Domain.Vector3DTests" name="ToString_FormatsCorrectly" />
+    </UnitTest>
+    <UnitTest name="SatTrak.Tests.Services.PropagatorServiceTests.Propagate_InvalidTLE_ThrowsArgumentException" storage="c:\users\csim6\source\repos\sattrak\src\sattrak.tests\bin\debug\net10.0\sattrak.tests.dll" id="235622a4-f71d-86e1-89f3-1c619cc900f3">
+      <Execution id="0485618a-19a8-46ee-b7f9-c46409dfcfc8" />
+      <TestMethod codeBase="C:\Users\Csim6\source\repos\SatTrak\src\SatTrak.Tests\bin\Debug\net10.0\SatTrak.Tests.dll" adapterTypeName="executor://xunit/VsTestRunner3/netcore/" className="SatTrak.Tests.Services.PropagatorServiceTests" name="Propagate_InvalidTLE_ThrowsArgumentException" />
+    </UnitTest>
+  </TestDefinitions>
+  <TestEntries>
+    <TestEntry testId="235622a4-f71d-86e1-89f3-1c619cc900f3" executionId="0485618a-19a8-46ee-b7f9-c46409dfcfc8" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestEntry testId="f8ff0a34-dba5-2564-9a34-35b1303d752f" executionId="79d5a635-a0f6-413d-a6aa-8f6dc9f95b39" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestEntry testId="0dad7f4f-e965-e90b-3f23-6b416ffd1c81" executionId="020a9002-64ad-4a84-8aa6-626836d13454" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestEntry testId="947b9a3d-0cde-d4f9-910c-73b97ed1c4a7" executionId="29993cae-e051-493d-b0cc-a5dffc87aa90" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+  </TestEntries>
+  <TestLists>
+    <TestList name="Results Not in a List" id="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestList name="All Loaded Results" id="19431567-8539-422a-85d7-44ee4e166bda" />
+  </TestLists>
+  <ResultSummary outcome="Failed">
+    <Counters total="4" executed="4" passed="3" failed="1" error="0" timeout="0" aborted="0" inconclusive="0" passedButRunAborted="0" notRunnable="0" notExecuted="0" disconnected="0" warning="0" completed="0" inProgress="0" pending="0" />
+    <Output>
+      <StdOut>[xUnit.net 00:00:00.00] xUnit.net VSTest Adapter v3.1.4+50e68bbb8b (64-bit .NET 10.0.0-rc.2.25502.107)&#xD;
+[xUnit.net 00:00:00.08]   Discovering: SatTrak.Tests&#xD;
+[xUnit.net 00:00:00.11]   Discovered:  SatTrak.Tests&#xD;
+[xUnit.net 00:00:00.13]   Starting:    SatTrak.Tests&#xD;
+[xUnit.net 00:00:00.19]       Assert.Equal() Failure: Strings differ&#xD;
+[xUnit.net 00:00:00.19]                       ↓ (pos 5)&#xD;
+[xUnit.net 00:00:00.19]       Expected: "(1.235, 5.679, 9.012)"&#xD;
+[xUnit.net 00:00:00.19]       Actual:   "(1.234, 5.679, 9.012)"&#xD;
+[xUnit.net 00:00:00.19]                       ↑ (pos 5)&#xD;
+[xUnit.net 00:00:00.19]       Stack Trace:&#xD;
+[xUnit.net 00:00:00.19]         C:\Users\Csim6\source\repos\SatTrak\src\SatTrak.Tests\Domain\Vector3DTests.cs(35,0): at SatTrak.Tests.Domain.Vector3DTests.ToString_FormatsCorrectly()&#xD;
+[xUnit.net 00:00:00.19]            at System.Reflection.MethodBaseInvoker.InterpretedInvoke_Method(Object obj, IntPtr* args)&#xD;
+[xUnit.net 00:00:00.19]            at System.Reflection.MethodBaseInvoker.InvokeWithNoArgs(Object obj, BindingFlags invokeAttr)&#xD;
+[xUnit.net 00:00:00.23]   Finished:    SatTrak.Tests&#xD;
+</StdOut>
+    </Output>
+    <RunInfos>
+      <RunInfo computerName="DEUT" outcome="Error" timestamp="2025-12-24T21:16:35.8163210-06:00">
+        <Text>[xUnit.net 00:00:00.19]     SatTrak.Tests.Domain.Vector3DTests.ToString_FormatsCorrectly [FAIL]</Text>
+      </RunInfo>
+    </RunInfos>
+  </ResultSummary>
+</TestRun>

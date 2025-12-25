@@ -8,25 +8,22 @@ namespace SatTrak.Core.Domain;
 /// </summary>
 public class SatelliteState
 {
-    /// <summary>
-    /// The Position vector in km (ECI frame).
-    /// </summary>
-    public Vector3D Position { get; }
 
-    /// <summary>
-    /// The Velocity vector in km/s (ECI frame).
-    /// </summary>
-    public Vector3D Velocity { get; }
 
-    /// <summary>
-    /// The calculation timestamp (UTC).
-    /// </summary>
+    public Vector3D Position { get; } // ECI
+    public Vector3D Velocity { get; } // ECI
+    public double Latitude { get; }   // Degrees
+    public double Longitude { get; }  // Degrees
+    public double Altitude { get; }   // km
     public DateTime Timestamp { get; }
 
-    public SatelliteState(Vector3D position, Vector3D velocity, DateTime timestamp)
+    public SatelliteState(Vector3D position, Vector3D velocity, double lat, double lon, double alt, DateTime timestamp)
     {
         Position = position;
         Velocity = velocity;
+        Latitude = lat;
+        Longitude = lon;
+        Altitude = alt;
         Timestamp = timestamp;
     }
 }

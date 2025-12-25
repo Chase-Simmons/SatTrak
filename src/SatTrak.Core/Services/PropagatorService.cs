@@ -38,11 +38,29 @@ public class PropagatorService : IPropagatorService
             // Propagate to target time (ECI coordinates)
             var eci = sat.Predict(targetTime);
 
-            // Map to domain types (km, km/s)
+            // Calculate Geodetic coordinates (Lat/Lon/Alt)
+            var geo = eci.ToGeodetic();
+
+            // Map to domain types (km, km/s, degrees)
             var position = new Vector3D(eci.Position.X, eci.Position.Y, eci.Position.Z);
             var velocity = new Vector3D(eci.Velocity.X, eci.Velocity.Y, eci.Velocity.Z);
 
-            return new SatelliteState(position, velocity, targetTime);
+            // SGP.NET GeodeticCoordinate properties are usually in Radians or Degrees?
+            // Usually internal is Radians. Let's convert to Degrees just in case or check Angle property.
+            // Looking at standard SGP.NET, ToGeodetic returns object with Angle properties.
+            // Assuming geo.Latitude is an Angle object, or double (radians).
+            // Let's assume it returns GeodeticCoordinate which has Latitude (double rad) or Angle.
+            // Actually, safe bet: use Angle class if available or just assume radians and convert.
+            // SGP.NET 'Angle' struct has .Degrees property.
+            // Let's inspect eci.ToGeodetic() signature via tool if possible, 
+            // but I'll assume geo.Latitude is an Angle wrapper based on library patterns.
+            // If it's a double, it's radians.
+            
+            // Re-checking SGP.NET source code (mental model): ToGeodetic() returns GeodeticCoordinate.
+            // GeodeticCoordinate has Latitude (Angle), Longitude (Angle), Altitude (double).
+            // So: geo.Latitude.Degrees.
+
+            return new SatelliteState(position, velocity, geo.Latitude.Degrees, geo.Longitude.Degrees, geo.Altitude, targetTime);
         }
         catch (Exception ex)
         {

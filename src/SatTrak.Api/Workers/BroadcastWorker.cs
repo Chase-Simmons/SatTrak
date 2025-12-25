@@ -66,7 +66,10 @@ public class BroadcastWorker : BackgroundService
                                 Name = tle.Name,
                                 Pos = new { state.Position.X, state.Position.Y, state.Position.Z },
                                 Vel = new { state.Velocity.X, state.Velocity.Y, state.Velocity.Z },
-                                Time = state.Timestamp
+                                Time = state.Timestamp,
+                                Lat = state.Latitude,
+                                Lon = state.Longitude,
+                                Alt = state.Altitude
                             });
                         }
                         catch
