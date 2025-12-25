@@ -21,6 +21,17 @@ const OrbitPath = () => {
         return tles.find(t => t.id === selectedSatId);
     }, [tles, selectedSatId]);
 
+    // State to trigger re-calculation
+    const [refreshKey, setRefreshKey] = React.useState(0);
+
+    // Refresh orbit path periodically to keep it in sync
+    React.useEffect(() => {
+        const interval = setInterval(() => {
+            setRefreshKey(k => k + 1);
+        }, 5000); // 5 seconds
+        return () => clearInterval(interval);
+    }, []);
+
     // Calculate Path Points
     const { points, currentSatRec } = useMemo(() => {
         if (!selectedTle) return { points: [], currentSatRec: null };
@@ -29,16 +40,12 @@ const OrbitPath = () => {
         const pts: Vector3[] = [];
         
         // Determine orbital period or just do a fixed slice.
-        // LEO is ~90 mins. GEO is 24 hours.
-        // Mean motion (revs/day) is in the TLE. rec.no (rad/min)
-        // period (min) = 2 * pi / n
-        // rec.no is in radians/minute.
         const meanMotionRadMin = rec.no; 
         const periodMin = (2 * Math.PI) / meanMotionRadMin;
         
         // Generate points for 1 orbit
         const segments = 200;
-        const startTime = new Date();
+        const startTime = new Date(); // This now updates when refreshKey changes
         
         for (let i = 0; i <= segments; i++) {
             const timeOffset = (i / segments) * periodMin; // minutes
@@ -55,7 +62,7 @@ const OrbitPath = () => {
         }
 
         return { points: pts, currentSatRec: rec };
-    }, [selectedTle]);
+    }, [selectedTle, refreshKey]);
 
     // Current Position Marker (Highlight)
     const markerRef = React.useRef<any>(null);
@@ -82,7 +89,7 @@ const OrbitPath = () => {
                 <Line 
                     points={points} 
                     color="#00ffff" 
-                    lineWidth={2} 
+                    lineWidth={3} 
                     transparent 
                     opacity={0.5} 
                 />

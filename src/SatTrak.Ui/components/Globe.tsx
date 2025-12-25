@@ -1,15 +1,76 @@
 "use client";
 
-import React, { useMemo } from "react";
-import { Canvas } from "@react-three/fiber";
+import React, { useMemo, useRef, useState } from "react";
+import { Canvas, useThree } from "@react-three/fiber";
 import { OrbitControls, Stars } from "@react-three/drei";
 import { Vector3 } from "three";
-import { useSatelliteStream } from "../hooks/useSatelliteStream";
 import { useSatelliteStore } from "../hooks/useSatelliteStore";
 import SatelliteInstanced from "./SatelliteInstanced";
 import SatellitePanel from "./SatellitePanel";
 import OrbitPath from "./OrbitPath";
-import * as d3 from "d3-geo";
+import DistanceGrid from "./DistanceGrid";
+import { AltitudeLogic, AltitudeOverlay } from "./AltitudeIndicator";
+import * as THREE from "three";
+
+// Helper to bridge camera control to outside button
+const CameraController = ({ resetRef, onReady }: { resetRef: React.MutableRefObject<() => void>, onReady?: () => void }) => {
+    const { camera, controls } = useThree();
+    
+    React.useEffect(() => {
+        resetRef.current = () => {
+            camera.position.set(20, 35, 55);
+            camera.lookAt(0, 0, 0);
+            const ctrl = (controls as any);
+            if (ctrl) {
+                ctrl.target.set(0, 0, 0);
+                ctrl.update();
+            }
+        };
+
+        // Initial setup
+        resetRef.current();
+        
+        // Signal ready after a delay to ensure matrices update
+        if (onReady) {
+            setTimeout(() => onReady(), 50); 
+        }
+
+    }, [camera, controls, resetRef, onReady]);
+
+    return null;
+};
+
+const ResetButton = ({ resetCallback }: { resetCallback: React.RefObject<() => void> }) => {
+    return (
+        <div style={{
+            position: 'absolute',
+            bottom: '2rem',
+            left: '50%',
+            transform: 'translateX(-50%)',
+            zIndex: 40,
+            pointerEvents: 'auto'
+        }}>
+            <button 
+                onClick={() => resetCallback.current && resetCallback.current()}
+                style={{
+                    background: 'rgba(22, 78, 99, 0.8)', 
+                    color: '#cffafe', 
+                    padding: '8px 24px', 
+                    borderRadius: '4px', 
+                    border: '1px solid rgba(6, 182, 212, 0.5)', 
+                    fontFamily: 'monospace',
+                    letterSpacing: '0.05em',
+                    boxShadow: '0 0 15px rgba(8,145,178,0.4)',
+                    cursor: 'pointer',
+                    textTransform: 'uppercase',
+                    backdropFilter: 'blur(4px)'
+                }}
+            >
+                RESET VIEW
+            </button>
+        </div>
+    );
+};
 
 const EARTH_RADIUS = 6.371; // Normalized radius for visualization
 
@@ -36,14 +97,23 @@ const WorldLines = () => {
         const lineSegments: Float32Array[] = [];
         data.features.forEach((feature: any) => {
           const coords = feature.geometry.coordinates;
-          const points: number[] = [];
           
-          coords.forEach(([lon, lat]: [number, number]) => {
-            const vec = toCartesian(lat, lon, 0); // 0 altitude for surface lines
-            points.push(vec.x, vec.y, vec.z);
-          });
-          
-          lineSegments.push(new Float32Array(points));
+          const processLine = (coordinates: number[][]) => {
+              const pts: number[] = [];
+              coordinates.forEach(c => {
+                 const v = toCartesian(c[1], c[0], 0);
+                 pts.push(v.x, v.y, v.z);
+              });
+              return new Float32Array(pts);
+          };
+
+          if (feature.geometry.type === "LineString") {
+             lineSegments.push(processLine(coords));
+          } else if (feature.geometry.type === "MultiLineString") {
+             coords.forEach((line: number[][]) => lineSegments.push(processLine(line)));
+          } else if (feature.geometry.type === "Polygon") {
+             coords.forEach((ring: number[][]) => lineSegments.push(processLine(ring)));
+          }
         });
         setLines(lineSegments);
       });
@@ -66,20 +136,14 @@ const WorldLines = () => {
   );
 };
 
-
-
 const Graticule = () => {
     const lines = useMemo(() => {
         const lineSegments: Float32Array[] = [];
         const segments = 64; // Resolution of circles
-        const r = EARTH_RADIUS; // * 0.99 for slightly below sat? No, match Outline? 
-        // Using radius same as toCartesian (EARTH_RADIUS) which is roughly 6.371.
-        // Actually, Outline is maybe slightly larger? No, world lines use toCartesian(0 alt).
-        // Let's use alt=0 for grid too.
-
+        
         // Latitudes (Parallels) -80 to 80
         for (let lat = -80; lat <= 80; lat += 10) {
-            if (lat === 0) continue; // Skip equator if desired, or keep. keeping.
+            if (lat === 0) continue; 
             const points: number[] = [];
             for (let i = 0; i <= segments; i++) {
                 const lon = (i / segments) * 360 - 180;
@@ -100,10 +164,6 @@ const Graticule = () => {
             }
             lineSegments.push(new Float32Array(points));
         }
-        
-        // Equator (Special case if we skipped it above, but we didn't)
-        // Ensure seamless wrap for circles by going 0 to 360 (i<=segments covers start/end)
-
         return lineSegments;
     }, []);
 
@@ -127,6 +187,13 @@ const Graticule = () => {
 const Globe = () => {
     // const { satellites, connectionStatus } = useSatelliteStream(); // Legacy SignalR
     const { fetchTles, tles, loading } = useSatelliteStore();
+    const earthRef = React.useRef<THREE.Mesh>(null);
+    const resetRef = useRef<() => void>(() => {});
+    const [sceneReady, setSceneReady] = useState(false);
+    
+    // Altitude HUD Refs
+    const altBarRef = useRef<HTMLDivElement>(null);
+    const altTextRef = useRef<HTMLDivElement>(null);
 
     React.useEffect(() => {
         fetchTles();
@@ -149,13 +216,18 @@ const Globe = () => {
                 <div>Satellites: {tles.length} {loading && "(Loading...)"}</div>
             </div>
 
-            <Canvas camera={{ position: [0, 0, 18], fov: 45 }}>
+            {/* UI Overlays (Outside Canvas) */}
+            <SatellitePanel />
+            <ResetButton resetCallback={resetRef} />
+            <AltitudeOverlay barRef={altBarRef} textRef={altTextRef} />
+
+            <Canvas camera={{ position: [20, 35, 55], fov: 45 }}>
                 <color attach="background" args={["#000000"]} />
                 <ambientLight intensity={0.5} />
                 <pointLight position={[10, 10, 10]} />
                 
                 {/* Solid Black Earth to occlude stars */}
-                <mesh>
+                <mesh ref={earthRef}>
                     <sphereGeometry args={[EARTH_RADIUS * 0.98, 32, 32]} />
                     <meshBasicMaterial color="#000" />
                 </mesh>
@@ -169,17 +241,33 @@ const Globe = () => {
                 {/* Stars Background */}
                 <Stars radius={100} depth={50} count={5000} factor={4} saturation={0} fade speed={1} />
 
+                {/* Distance Grid - Only render after camera is positioned */}
+                {sceneReady && <DistanceGrid earthRef={earthRef} />}
+
                 {/* Instanced Satellites */}
                 <SatelliteInstanced />
 
                 {/* Selected Orbit Path */}
                 <OrbitPath />
 
-                <OrbitControls enablePan={false} minDistance={8} maxDistance={40} />
-            </Canvas>
+                {/* Logic Components */}
+                <CameraController resetRef={resetRef} onReady={() => setSceneReady(true)} />
+                <AltitudeLogic barRef={altBarRef} textRef={altTextRef} />
 
-            {/* Editor Panel moved to end for Z-order safety */}
-            <SatellitePanel />
+                <OrbitControls 
+                    enablePan={false} 
+                    minDistance={6.5} 
+                    maxDistance={110}
+                    enableDamping={true}
+                    dampingFactor={0.1}
+                    zoomSpeed={1.2}
+                    mouseButtons={{
+                        LEFT: THREE.MOUSE.ROTATE,
+                        MIDDLE: THREE.MOUSE.PAN,
+                        RIGHT: THREE.MOUSE.DOLLY
+                    }}
+                />
+            </Canvas>
         </div>
     );
 };

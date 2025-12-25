@@ -35,7 +35,13 @@ const SatelliteInstanced = () => {
 
     const color = useMemo(() => new Color(), []);
 
-    useFrame(() => {
+    const lastUpdate = useRef(0);
+
+    useFrame(({ clock }) => {
+        const t = clock.getElapsedTime();
+        if (t - lastUpdate.current < 0.1) return; // Limit to 10 FPS
+        lastUpdate.current = t;
+
         const mesh = meshRef.current;
         if (!mesh || satRecords.length === 0) return;
 
@@ -52,22 +58,28 @@ const SatelliteInstanced = () => {
                 const z = -pos.y * SCALE_FACTOR; 
 
                 tempObject.position.set(x, y, z);
-                tempObject.scale.setScalar(1); 
-                tempObject.updateMatrix();
-                mesh.setMatrixAt(i, tempObject.matrix);
 
-                // Color by Altitude
+                // Color & Scale by Altitude
                 // ECI position vector magnitude in km
                 const rKm = Math.sqrt(pos.x*pos.x + pos.y*pos.y + pos.z*pos.z);
                 const altKm = rKm - EARTH_RADIUS_KM;
 
+                let scale = 1.0;
+
                 if (altKm < 2000) {
                     color.setHex(0x00ff00); // LEO: Green
+                    scale = 1.0;
                 } else if (altKm < 30000) {
                     color.setHex(0x00ffff); // MEO: Cyan
+                    scale = 1.5; // Make MEO larger
                 } else {
                     color.setHex(0xff0000); // GEO: Red
+                    scale = 2.0; // Make GEO largest
                 }
+                
+                tempObject.scale.setScalar(scale); 
+                tempObject.updateMatrix();
+                mesh.setMatrixAt(i, tempObject.matrix);
                 mesh.setColorAt(i, color);
 
             } else {

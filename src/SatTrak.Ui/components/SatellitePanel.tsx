@@ -7,6 +7,7 @@ import styles from './SatellitePanel.module.css';
 const SatellitePanel = () => {
     const { tles, searchQuery, setSearchQuery, selectedSatId, setSelectedSatId } = useSatelliteStore();
     const [visibleCount, setVisibleCount] = React.useState(100);
+    const [isOpen, setIsOpen] = React.useState(true);
 
     // Filter Logic
     const filteredSats = useMemo(() => {
@@ -31,7 +32,39 @@ const SatellitePanel = () => {
     const quickFilters = ["Starlink", "GPS", "GLONASS", "IRIDIUM", "NOAA", "GOES"];
 
     return (
-        <div className={styles.panel}>
+        <div 
+            className={styles.panel}
+            style={{
+                transform: isOpen ? 'translateX(0)' : 'translateX(-100%)',
+                transition: 'transform 0.3s cubic-bezier(0.4, 0, 0.2, 1)'
+            }}
+        >
+            {/* Toggle Button */}
+            <button
+                onClick={() => setIsOpen(!isOpen)}
+                style={{
+                    position: 'absolute',
+                    left: '100%',
+                    top: '120px',
+                    background: 'rgba(10, 14, 23, 0.8)',
+                    border: '1px solid rgba(255,255,255,0.1)',
+                    borderLeft: 'none',
+                    borderRadius: '0 4px 4px 0',
+                    color: '#22d3ee',
+                    padding: '12px 4px',
+                    cursor: 'pointer',
+                    backdropFilter: 'blur(4px)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    width: '24px',
+                    boxShadow: '4px 0 10px rgba(0,0,0,0.2)'
+                }}
+                title={isOpen ? "Collapse Panel" : "Expand Panel"}
+            >
+                {isOpen ? '❮' : '❯'}
+            </button>
+
             {/* Header */}
             <div className={styles.header}>
                 <div className={styles.title}>SAT TRAK // MISSION CONTROL</div>
