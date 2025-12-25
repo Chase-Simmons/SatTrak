@@ -1,0 +1,45 @@
+# Visual Studio
+.vs/
+.vscode/
+
+# Build results
+[Bb]in/
+[Oo]bj/
+build/
+
+# User-specific files
+*.suo
+*.user
+*.userosscache
+*.sln.docstates
+
+# .NET
+*.dll
+*.exe
+*.pdb
+*.lock.json
+project.lock.json
+
+# NuGet packages
+*.nupkg
+.nuget/
+!/.nuget/NuGet.Config
+packages/
+
+# Logs
+*.log
+
+# Node.js / Next.js
+node_modules/
+.next/
+out/
+coverage/
+.DS_Store
+*.pem
+
+# Environment variables
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
