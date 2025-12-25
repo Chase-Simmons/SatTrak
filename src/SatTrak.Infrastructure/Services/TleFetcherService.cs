@@ -14,7 +14,8 @@ public class TleFetcherService : SatTrak.Core.Services.ITleFetcherService
 {
     private readonly HttpClient _httpClient;
     private readonly ILogger<TleFetcherService> _logger;
-    private const string StarlinkUrl = "https://celestrak.org/NORAD/elements/gp.php?GROUP=starlink&FORMAT=tle";
+    private const string ActiveSatellitesUrl = "https://celestrak.org/NORAD/elements/gp.php?GROUP=active&FORMAT=tle";
+
 
     public TleFetcherService(HttpClient httpClient, ILogger<TleFetcherService> logger)
     {
@@ -24,12 +25,12 @@ public class TleFetcherService : SatTrak.Core.Services.ITleFetcherService
 
     public async Task<Dictionary<int, Tle>> FetchActiveSatellitesAsync()
     {
-        _logger.LogInformation("Fetching TLE data from {Url}", StarlinkUrl);
+        _logger.LogInformation("Fetching TLE data from {Url}", ActiveSatellitesUrl);
 
         try
         {
             // Download Content
-            var response = await _httpClient.GetStringAsync(StarlinkUrl);
+            var response = await _httpClient.GetStringAsync(ActiveSatellitesUrl);
             var lines = response.Split(new[] { '\r', '\n' }, StringSplitOptions.RemoveEmptyEntries);
 
             var tles = new Dictionary<int, Tle>();
@@ -45,8 +46,8 @@ public class TleFetcherService : SatTrak.Core.Services.ITleFetcherService
 
                 try
                 {
-                    // Use standard 2-line constructor.
-                    var tleObj = new Tle(line1, line2);
+                    // Use 3-line constructor to include Name.
+                    var tleObj = new Tle(name, line1, line2);
                     
                     if (!tles.ContainsKey((int)tleObj.NoradNumber))
                     {

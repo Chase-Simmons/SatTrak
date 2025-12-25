@@ -14,7 +14,6 @@ namespace SatTrak.Api.Workers;
 public class TleWorker : BackgroundService
 {
     private readonly IServiceProvider _serviceProvider;
-    // Inject Cache directly since it's Singleton
     private readonly ITleCache _tleCache;
     private readonly ILogger<TleWorker> _logger;
     private readonly TimeSpan _refreshInterval = TimeSpan.FromHours(6);
