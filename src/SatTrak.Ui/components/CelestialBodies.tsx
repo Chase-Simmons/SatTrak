@@ -79,13 +79,19 @@ const getMoonPosition = (date: Date) => {
     return new THREE.Vector3(x, z, -y);
 };
 
+import { useSatelliteStore } from "../hooks/useSatelliteStore";
+
 const CelestialBodies = () => {
+    const { showCelestialBodies } = useSatelliteStore();
     const sunRef = useRef<THREE.Group>(null);
     const sunGlowRef = useRef<THREE.Group>(null);
     const innerGlowMat = useRef<THREE.ShaderMaterial>(null);
     const outerGlowMat = useRef<THREE.ShaderMaterial>(null);
     const moonRef = useRef<THREE.Group>(null);
     const lightRef = useRef<THREE.DirectionalLight>(null);
+
+    // If disabled, we still need the lights for the Earth, but we hide the bodies
+    const isVisible = showCelestialBodies;
 
     // 1. Initial Position (Static calculation for frame 1 stability)
     const initialPos = useMemo(() => {
@@ -155,8 +161,8 @@ const CelestialBodies = () => {
 
     return (
         <group>
-            {/* The Sun: Glowing System - Always on and No Culling to prevent flicker */}
-            <group ref={sunRef} visible={true}>
+            {/* The Sun: Glowing System - Toggleable and No Culling */}
+            <group ref={sunRef} visible={showCelestialBodies}>
                 {/* Core Sphere (Selective Bloom Target) - HDR Brightness */}
                 <mesh frustumCulled={false}>
                     <sphereGeometry args={[SUN_RADIUS_VISUAL, 32, 32]} />
@@ -209,8 +215,8 @@ const CelestialBodies = () => {
                 castShadow={false} // Performance
             />
 
-            {/* The Moon: Double-Sphere - Always on and No Culling */}
-            <group ref={moonRef} visible={true}>
+            {/* The Moon: Double-Sphere - Toggleable and No Culling */}
+            <group ref={moonRef} visible={showCelestialBodies}>
                 {/* Outer Wireframe Shell */}
                 <mesh frustumCulled={false}>
                     <sphereGeometry args={[MOON_RADIUS, 4, 4]} />

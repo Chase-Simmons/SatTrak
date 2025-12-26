@@ -77,13 +77,20 @@ const Ring = ({ altitudeKm, label, color = "#444", earthRef, orientation = 'xz',
     );
 };
 
+import { useSatelliteStore } from "../hooks/useSatelliteStore";
+
 const DistanceGrid = ({ earthRef }: { earthRef?: React.RefObject<THREE.Mesh | null> }) => {
-    const gridConfigs = [
+    const { showKmMarkers, showOrbitRanges } = useSatelliteStore();
+
+    const orbitConfigs = [
         { altitudeKm: 2000, label: "LEO", color: "#00ff00", thickness: 0.06 },
-        { altitudeKm: 10000, label: "10k" },
         { altitudeKm: 20000, label: "MEO", color: "#00ffff", thickness: 0.06 },
-        { altitudeKm: 30000, label: "30k" },
         { altitudeKm: 35786, label: "GEO", color: "#ff4444", thickness: 0.06 },
+    ];
+
+    const kmConfigs = [
+        { altitudeKm: 10000, label: "10k" },
+        { altitudeKm: 30000, label: "30k" },
         { altitudeKm: 40000, label: "40k" },
         { altitudeKm: 50000, label: "50k" },
         { altitudeKm: 60000, label: "60k" },
@@ -95,9 +102,14 @@ const DistanceGrid = ({ earthRef }: { earthRef?: React.RefObject<THREE.Mesh | nu
 
     const orientations: Orientation[] = ['xz', 'xy', 'yz'];
 
+    const activeConfigs: RingConfig[] = [
+        ...(showOrbitRanges ? orbitConfigs : []),
+        ...(showKmMarkers ? kmConfigs : []),
+    ];
+
     return (
         <group>
-            {gridConfigs.map(config => (
+            {activeConfigs.map(config => (
                 <React.Fragment key={config.altitudeKm}>
                     {orientations.map(orientation => (
                         <Ring 
@@ -105,7 +117,7 @@ const DistanceGrid = ({ earthRef }: { earthRef?: React.RefObject<THREE.Mesh | nu
                             altitudeKm={config.altitudeKm}
                             label={config.label}
                             color={config.color}
-                            thickness={config.thickness}
+                            thickness={(config as any).thickness || 0.05}
                             earthRef={earthRef}
                             orientation={orientation}
                         />

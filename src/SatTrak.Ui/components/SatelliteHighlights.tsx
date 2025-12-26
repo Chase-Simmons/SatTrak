@@ -11,41 +11,50 @@ const satLib = satellite as any;
 const SCALE_FACTOR = 1 / 1000;
 
 const SatelliteHighlights = () => {
-    const { tles, selectedIds } = useSatelliteStore();
+    const { tleMap, selectedIds, satrecCache } = useSatelliteStore();
+    const updateIndex = useRef(0);
+    const CHUNK_SIZE = 500;
 
-    // Map selected IDs to TLE objects
     const selectedSats = useMemo(() => {
         if (!selectedIds.length) return [];
-        return tles.filter(t => selectedIds.includes(t.id));
-    }, [tles, selectedIds]);
+        return selectedIds.map(id => {
+            const tle = tleMap.get(id);
+            const rec = satrecCache.get(id);
+            return tle && rec ? { ...tle, rec } : null;
+        }).filter(Boolean) as any[];
+    }, [tleMap, selectedIds, satrecCache]);
 
     const meshRef = useRef<THREE.InstancedMesh>(null);
     const dummy = useMemo(() => new THREE.Object3D(), []);
 
-    useFrame(() => {
-        if (!meshRef.current || selectedSats.length === 0) return;
+    useFrame(({ clock }) => {
+        const mesh = meshRef.current;
+        if (!mesh || selectedSats.length === 0) return;
+        
+        const total = selectedSats.length;
+        const start = updateIndex.current;
+        const end = Math.min(start + CHUNK_SIZE, total);
         const now = new Date();
-        let count = 0;
 
-        selectedSats.forEach((sat, i) => {
-             const rec = satLib.twoline2satrec(sat.line1, sat.line2);
-             if(!rec) return;
-             const pv = satLib.propagate(rec, now);
-             if (pv.position && typeof pv.position !== 'boolean') {
-                const p = pv.position;
-                dummy.position.set(p.x * SCALE_FACTOR, p.z * SCALE_FACTOR, -p.y * SCALE_FACTOR);
+        for (let i = 0; i < total; i++) {
+             const isNewInStream = i >= start && i < end;
+             const isRegularUpdate = i % 10 === (clock.getElapsedTime() * 10 | 0) % 10;
+
+             if (isNewInStream || isRegularUpdate) {
+                const sat = selectedSats[i];
+                const pv = satLib.propagate(sat.rec, now);
                 
-                // Scale larger than the dot (Dot is 4.0 or 1.5)
-                // Fixed scale to match standardized dot size (1.5 * 0.03 = 0.045 vs 0.8 * 0.08 = 0.064)
-                const scale = 0.8;
-                dummy.scale.setScalar(scale); 
-                dummy.updateMatrix();
-                meshRef.current.setMatrixAt(i, dummy.matrix);
-                count++;
+                if (pv && pv.position && typeof pv.position !== 'boolean') {
+                    const p = pv.position;
+                    dummy.position.set(p.x * SCALE_FACTOR, p.z * SCALE_FACTOR, -p.y * SCALE_FACTOR);
+                    dummy.scale.setScalar(0.8); 
+                    dummy.updateMatrix();
+                    mesh.setMatrixAt(i, dummy.matrix);
+                }
              }
-        });
-        meshRef.current.instanceMatrix.needsUpdate = true;
-        meshRef.current.count = count;
+        }
+        mesh.instanceMatrix.needsUpdate = true;
+        updateIndex.current = end >= total ? 0 : end;
     });
 
     if (selectedSats.length === 0) return null;

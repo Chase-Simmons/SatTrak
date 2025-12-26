@@ -14,6 +14,7 @@ import SatellitePanel from "./SatellitePanel";
 import OrbitPath from "./OrbitPath";
 import DistanceGrid from "./DistanceGrid";
 import CelestialBodies from "./CelestialBodies";
+import CameraController from "./CameraController";
 import * as THREE from "three";
 
 const EARTH_RADIUS = 6.371; // Normalized radius for visualization
@@ -207,7 +208,7 @@ const Globe = () => {
                 <SatelliteHighlights />
                 <SatelliteLabels />
 
-                {/* Logic Components */}
+                <CameraController />
                 <AltitudeLogic barRef={altBarRef} textRef={altTextRef} />
 
                 {/* Post-processing effects */}
@@ -221,6 +222,7 @@ const Globe = () => {
                 </EffectComposer>
 
                 <OrbitControls 
+                    makeDefault
                     enablePan={false} 
                     minDistance={6.5} 
                     maxDistance={110} 
