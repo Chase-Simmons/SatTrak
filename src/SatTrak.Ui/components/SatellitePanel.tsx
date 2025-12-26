@@ -3,6 +3,7 @@
 import React, { useMemo } from 'react';
 import { filterSatellites } from "../utils/SatelliteSearch";
 import { useSatelliteStore } from '../hooks/useSatelliteStore';
+import { useShallow } from 'zustand/react/shallow'; 
 import styles from './SatellitePanel.module.css';
 import { getOrbitClass, getOrbitColor, OrbitClass } from '../utils/OrbitalMath';
 import * as satellite from 'satellite.js';
@@ -95,7 +96,27 @@ const SatellitePanel = () => {
         setShowCelestialBodies,
         focusedId,
         setFocusedId
-    } = useSatelliteStore();
+    } = useSatelliteStore(useShallow(state => ({
+        tles: state.tles, 
+        searchQuery: state.searchQuery, 
+        setSearchQuery: state.setSearchQuery, 
+        selectedIds: state.selectedIds, 
+        toggleSelection: state.toggleSelection, 
+        clearSelection: state.clearSelection,
+        selectMultiple: state.selectMultiple,
+        showOrbits: state.showOrbits,
+        showLabels: state.showLabels,
+        showKmMarkers: state.showKmMarkers,
+        showOrbitRanges: state.showOrbitRanges,
+        showCelestialBodies: state.showCelestialBodies,
+        setShowOrbits: state.setShowOrbits,
+        setShowLabels: state.setShowLabels,
+        setShowKmMarkers: state.setShowKmMarkers,
+        setShowOrbitRanges: state.setShowOrbitRanges,
+        setShowCelestialBodies: state.setShowCelestialBodies,
+        focusedId: state.focusedId,
+        setFocusedId: state.setFocusedId
+    })));
     
     const [visibleCount, setVisibleCount] = React.useState(100);
     const [pinnedVisibleCount, setPinnedVisibleCount] = React.useState(100);

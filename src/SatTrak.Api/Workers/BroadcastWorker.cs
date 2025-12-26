@@ -12,16 +12,13 @@ using SatTrak.Core.Services;
 
 namespace SatTrak.Api.Workers;
 
-/// <summary>
-/// High-frequency worker that propagates orbits and pushes updates to SignalR clients.
-/// </summary>
 public class BroadcastWorker : BackgroundService
 {
     private readonly ITleCache _tleCache;
     private readonly IPropagatorService _propagatorService;
     private readonly IHubContext<SatelliteHub> _hubContext;
     private readonly ILogger<BroadcastWorker> _logger;
-    private readonly TimeSpan _interval = TimeSpan.FromMilliseconds(100); // 10Hz
+    private readonly TimeSpan _interval = TimeSpan.FromMilliseconds(100);
 
     public BroadcastWorker(
         ITleCache tleCache,
@@ -39,8 +36,6 @@ public class BroadcastWorker : BackgroundService
     {
         _logger.LogInformation("Broadcast Worker started at 10Hz.");
 
-        // Limit broadcast to 100 satellites to minimize bandwidth during MVP phase.
-        
         while (!stoppingToken.IsCancellationRequested)
         {
             var start = DateTime.UtcNow;
@@ -74,11 +69,9 @@ public class BroadcastWorker : BackgroundService
                         }
                         catch
                         {
-                            // buffer errors
                         }
                     }
 
-                    // Broadcast
                     await _hubContext.Clients.All.SendAsync("ReceiveSatelliteUpdates", updates, stoppingToken);
                 }
             }

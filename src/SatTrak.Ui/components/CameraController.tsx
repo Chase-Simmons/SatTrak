@@ -8,11 +8,20 @@ const satLib = satellite as any;
 const SCALE_FACTOR = 1 / 1000;
 
 const CameraController = () => {
-    const { focusedId, tles } = useSatelliteStore();
+    const { focusedId, tles, setFocusedId } = useSatelliteStore();
     const { camera, controls } = useThree() as any;
     
     const targetPos = React.useRef(new THREE.Vector3(0, 0, 0));
     const [isTransitioning, setIsTransitioning] = React.useState(false);
+    
+    React.useEffect(() => {
+        if (!controls) return;
+        const handleStart = () => {
+            setFocusedId(null);
+        };
+        controls.addEventListener('start', handleStart);
+        return () => controls.removeEventListener('start', handleStart);
+    }, [controls, setFocusedId]);
 
     // Reset transition state when focused satellite changes
     React.useEffect(() => {
@@ -47,10 +56,8 @@ const CameraController = () => {
                 if (controls) {
                     // 1. ALWAYS look at Earth center
                     const center = new THREE.Vector3(0, 0, 0);
-                    controls.target.lerp(center, 0.1);
+                    controls.target.lerp(center, 0.2);
                     
-                    // 2. Align Camera along the Satellite's position vector
-                    // This puts the satellite directly between the camera and Earth
                     const satVector = targetPos.current.clone();
                     const satDist = satVector.length();
                     const satDir = satVector.normalize();
@@ -61,23 +68,17 @@ const CameraController = () => {
 
                     if (isTransitioning) {
                         const currentCamDist = camera.position.length();
-                        
-                        // Lerp distance and direction separately for smoother feel
-                        const nextDist = THREE.MathUtils.lerp(currentCamDist, idealDist, 0.1);
+                        const nextDist = THREE.MathUtils.lerp(currentCamDist, idealDist, 0.2);
                         const nextPos = satDir.multiplyScalar(nextDist);
-                        
-                        camera.position.lerp(nextPos, 0.1);
+                        camera.position.lerp(nextPos, 0.2);
 
-                        // If close enough, stop the transition lock to allow user zooming
                         if (Math.abs(currentCamDist - idealDist) < 0.2) {
                             setIsTransitioning(false);
                         }
                     } else {
-                        // Following Mode: Maintain the alignment with the satellite
-                        // But honor the user's current zoom distance
                         const currentZoom = camera.position.length();
                         const targetFollowPos = satDir.multiplyScalar(currentZoom);
-                        camera.position.lerp(targetFollowPos, 0.2);
+                        camera.position.lerp(targetFollowPos, 0.3);
                     }
                     
                     controls.update();

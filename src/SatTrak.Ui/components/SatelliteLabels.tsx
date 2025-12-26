@@ -5,28 +5,45 @@ import { useFrame, useThree } from "@react-three/fiber";
 import { Html } from "@react-three/drei";
 import * as satellite from "satellite.js";
 import { useSatelliteStore } from "../hooks/useSatelliteStore";
+import { useShallow } from 'zustand/react/shallow';
 import { Vector3 } from "three";
 import * as THREE from "three";
+
+const EARTH_RADIUS_OCLUDE = 6.371;
 
 // @ts-ignore
 const satLib = satellite as any;
 
 const SCALE_FACTOR = 1 / 1000;
-const EARTH_RADIUS_OCLUDE = 6.36; // Slightly less than 6.371 for grazing visibility
 
 interface LabelProps {
     satellite: any;
+    satRec: any;
     initialPos: Vector3; 
 }
 
-const SingleLabel = ({ satellite, initialPos }: LabelProps) => {
-    const groupRef = useRef<THREE.Group>(null);
-    const satRec = useMemo(() => {
-        if (!satellite) return null;
-        return satLib.twoline2satrec(satellite.line1, satellite.line2);
-    }, [satellite]);
+const LabelUI = ({ name }: { name: string }) => (
+    <div style={{
+        color: '#22d3ee',
+        fontSize: '10px', 
+        fontFamily: 'monospace',
+        background: 'rgba(5, 10, 20, 0.95)',
+        border: '1px solid rgba(34, 211, 238, 0.4)',
+        padding: '2px 8px',
+        borderRadius: '4px',
+        whiteSpace: 'nowrap',
+        transform: 'translateY(-26px)',
+        boxShadow: '0 4px 8px rgba(0,0,0,0.6)',
+        backdropFilter: 'blur(4px)',
+        fontWeight: 'bold'
+    }}>
+        {name}
+    </div>
+);
 
-    // Set initial position
+const SingleLabel = ({ satellite, satRec, initialPos }: LabelProps) => {
+    const groupRef = useRef<THREE.Group>(null);
+
     useEffect(() => {
         if (groupRef.current) {
             groupRef.current.position.copy(initialPos);
@@ -40,7 +57,7 @@ const SingleLabel = ({ satellite, initialPos }: LabelProps) => {
         if (pv.position && typeof pv.position !== 'boolean') {
             const p = pv.position;
             const x = p.x * SCALE_FACTOR;
-            const y = p.z * SCALE_FACTOR; // ECI Z -> Three Y
+            const y = p.z * SCALE_FACTOR;
             const z = -p.y * SCALE_FACTOR;
             groupRef.current.position.set(x, y, z);
         }
@@ -76,7 +93,99 @@ const SingleLabel = ({ satellite, initialPos }: LabelProps) => {
     );
 };
 
-// Geometric occlusion check: Segment CP vs Sphere at origin with radius R
+const HoverLabel = () => {
+    const hoveredId = useSatelliteStore(s => s.hoveredId);
+    const hoverPosition = useSatelliteStore(s => s.hoverPosition);
+    const tleMap = useSatelliteStore(s => s.tleMap);
+    const showLabels = useSatelliteStore(s => s.showLabels);
+    const { camera } = useThree();
+    const groupRef = useRef<THREE.Group>(null);
+    const labelRef = useRef<HTMLDivElement>(null);
+
+    // Direct DOM update loop for zero-latency text
+    useFrame(() => {
+        if (!showLabels || !groupRef.current) return;
+        
+        const state = useSatelliteStore.getState();
+        const currentHoverId = state.hoveredId;
+        const currentHoverPos = state.hoverPosition;
+        
+        // 1. Update Text Content Directly (Bypassing React Reconciliation)
+        if (labelRef.current) {
+            if (currentHoverId) {
+                const sat = state.tleMap.get(currentHoverId);
+                // Force text update every frame to match store state instantly
+                const newText = sat ? (sat.name || `SAT-${sat.id}`) : `SAT-${currentHoverId}`;
+                if (labelRef.current.innerText !== newText) {
+                    labelRef.current.innerText = newText;
+                }
+                labelRef.current.style.display = 'block';
+            } else {
+                 labelRef.current.style.display = 'none';
+            }
+        }
+
+        // 2. Resolve Satellite Data for Position
+        let activeRec = null;
+        if (currentHoverId) {
+             activeRec = state.satrecCache.get(currentHoverId);
+        }
+
+        let x, y, z;
+
+        if (activeRec) {
+            // High fidelity propagation
+            const now = new Date();
+            const pv = satLib.propagate(activeRec, now);
+            if (pv.position && typeof pv.position !== 'boolean') {
+                const p = pv.position;
+                x = p.x * SCALE_FACTOR;
+                y = p.z * SCALE_FACTOR;
+                z = -p.y * SCALE_FACTOR;
+            }
+        } else if (currentHoverPos) {
+            // Low latency fallback for first frames / loading phase
+            [x, y, z] = currentHoverPos;
+        }
+
+        if (x !== undefined && y !== undefined && z !== undefined) {
+            const v = new Vector3(x, y, z);
+            if (isOccludedByEarth(v, camera.position, EARTH_RADIUS_OCLUDE)) {
+                groupRef.current.visible = false;
+            } else {
+                groupRef.current.visible = true;
+                groupRef.current.position.set(x, y, z);
+            }
+        }
+    });
+
+    if (!showLabels) return null;
+
+    return (
+        <group ref={groupRef}>
+            <Html center distanceFactor={15} style={{ pointerEvents: 'none' }} zIndexRange={[1000, 500]}>
+                 <div ref={labelRef} style={{
+                    color: '#22d3ee',
+                    fontSize: '10px', 
+                    fontFamily: 'monospace',
+                    background: 'rgba(5, 10, 20, 0.95)',
+                    border: '1px solid rgba(34, 211, 238, 0.4)',
+                    padding: '2px 8px',
+                    borderRadius: '4px',
+                    whiteSpace: 'nowrap',
+                    transform: 'translateY(-26px)',
+                    boxShadow: '0 4px 8px rgba(0,0,0,0.6)',
+                    backdropFilter: 'blur(4px)',
+                    fontWeight: 'bold',
+                    display: 'none' // Hidden by default, shown by loop
+                }}>
+                    INITIALIZING...
+                </div>
+            </Html>
+        </group>
+    );
+};
+
 const isOccludedByEarth = (P: Vector3, C: Vector3, R: number) => {
     const L = new Vector3().subVectors(P, C);
     const a = L.dot(L);
@@ -92,35 +201,44 @@ const isOccludedByEarth = (P: Vector3, C: Vector3, R: number) => {
 };
 
 const SatelliteLabels = () => {
-    const { tles, selectedIds, showLabels } = useSatelliteStore();
+    const { tleMap, selectedIds, showLabels } = useSatelliteStore(useShallow(state => ({
+        tleMap: state.tleMap,
+        selectedIds: state.selectedIds,
+        showLabels: state.showLabels
+    })));
     const { camera } = useThree();
     
-    const [visibleLabels, setVisibleLabels] = useState<{sat: any, pos: Vector3}[]>([]);
+    const [visibleLabels, setVisibleLabels] = useState<{sat: any, rec: any, pos: Vector3}[]>([]);
     const lastUpdate = useRef(0);
 
-    // Map selected IDs to TLE objects
     const selectedSats = useMemo(() => {
-        if (!selectedIds.length) return [];
-        return tles.filter(t => selectedIds.includes(t.id));
-    }, [tles, selectedIds]);
+        if (!selectedIds || !selectedIds.length) return [];
+        return selectedIds.map(id => tleMap.get(id)).filter(Boolean) as any[];
+    }, [tleMap, selectedIds]);
 
     useFrame((state) => {
-        if (!showLabels || selectedSats.length === 0) return;
+        if (!showLabels || selectedSats.length === 0) {
+            if (visibleLabels.length > 0) setVisibleLabels([]);
+            return;
+        }
 
-        // Throttle sorting and occlusion to every 200ms
         const now = state.clock.getElapsedTime();
-        if (now - lastUpdate.current < 0.2) return;
+        if (now - lastUpdate.current < 0.25) return;
+        
         lastUpdate.current = now;
 
         const date = new Date();
         const camPos = camera.position;
-
-        const candidates = [];
         const R = EARTH_RADIUS_OCLUDE;
+        const currentHoverId = useSatelliteStore.getState().hoveredId;
+
+        const candidates: any[] = [];
         
         for (let i = 0; i < selectedSats.length; i++) {
             const sat = selectedSats[i];
-            const rec = satLib.twoline2satrec(sat.line1, sat.line2);
+            if (sat.id === currentHoverId) continue;
+            
+            const rec = useSatelliteStore.getState().satrecCache.get(sat.id);
             if (!rec) continue;
             
             const pv = satLib.propagate(rec, date);
@@ -128,32 +246,35 @@ const SatelliteLabels = () => {
                 const p = pv.position;
                 const v = new Vector3(p.x * SCALE_FACTOR, p.z * SCALE_FACTOR, -p.y * SCALE_FACTOR);
                 
-                // 1. Occlusion Check (Geometric)
                 if (isOccludedByEarth(v, camPos, R)) continue;
                 
-                // 2. Distance Check
                 const dist = v.distanceTo(camPos);
-                candidates.push({ sat, pos: v, dist });
+                candidates.push({ sat, rec, pos: v, dist });
             }
         }
 
-        // Sort by distance (ASC)
-        candidates.sort((a, b) => a.dist - b.dist);
+        if (candidates.length === 0) {
+            if (visibleLabels.length > 0) setVisibleLabels([]);
+            return;
+        }
 
-        // Take top N (Dynamic limit for performance/readability)
+        candidates.sort((a, b) => a.dist - b.dist);
         const maxLabels = selectedSats.length > 200 ? 15 : 40; 
-        const topN = candidates.slice(0, maxLabels);
-        setVisibleLabels(topN);
+        setVisibleLabels(candidates.slice(0, maxLabels));
     });
 
-    if (!showLabels || selectedSats.length === 0) return null;
+    if (!showLabels) return null;
 
     return (
         <group>
+            {/* Force component remount on ID change to prevent stale text */}
+            <HoverLabel />
+
             {visibleLabels.map(item => (
                 <SingleLabel 
                     key={item.sat.id} 
                     satellite={item.sat} 
+                    satRec={item.rec}
                     initialPos={item.pos}
                 />
             ))}

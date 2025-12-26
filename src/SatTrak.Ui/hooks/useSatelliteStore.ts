@@ -13,7 +13,7 @@ export interface SatelliteTle {
 
 interface SatelliteStore {
     tles: SatelliteTle[];
-    tleMap: Map<number, SatelliteTle>; // Fast lookup
+    tleMap: Map<number, SatelliteTle>;
     satrecCache: Map<number, any>;
     loading: boolean;
     
@@ -22,6 +22,7 @@ interface SatelliteStore {
     toggleSelection: (id: number) => void;
     clearSelection: () => void;
     selectMultiple: (ids: number[]) => void;
+    selectSingle: (id: number) => void;
 
     // View Options
     showOrbits: boolean;
@@ -42,6 +43,10 @@ interface SatelliteStore {
     focusedId: number | null;
     setFocusedId: (id: number | null) => void;
 
+    hoveredId: number | null;
+    hoverPosition: [number, number, number] | null;
+    setHoveredId: (id: number | null, pos?: [number, number, number] | null) => void;
+
     fetchTles: () => Promise<void>;
 }
 
@@ -61,6 +66,8 @@ export const useSatelliteStore = create<SatelliteStore>()(
             showOrbitRanges: true,
             showCelestialBodies: true,
             searchQuery: "",
+            hoveredId: null,
+            hoverPosition: null,
 
             toggleSelection: (id) => set((state) => {
                 const exists = state.selectedIds.includes(id);
@@ -72,8 +79,13 @@ export const useSatelliteStore = create<SatelliteStore>()(
             }),
             clearSelection: () => set({ selectedIds: [], focusedId: null }),
             selectMultiple: (ids) => set({ selectedIds: ids }),
+            selectSingle: (id) => set({ selectedIds: [id], focusedId: id }),
 
             setFocusedId: (id) => set({ focusedId: id }),
+            setHoveredId: (id, pos) => set({ 
+                hoveredId: id, 
+                hoverPosition: pos || null 
+            }),
 
             setShowOrbits: (val) => set({ showOrbits: val }),
             setShowLabels: (val) => set({ showLabels: val }),
@@ -91,13 +103,11 @@ export const useSatelliteStore = create<SatelliteStore>()(
             if (!res.ok) throw new Error("Failed to fetch TLEs");
             const data = await res.json() as SatelliteTle[];
             
-            // 1. Save data initially
             const tMap = new Map<number, SatelliteTle>();
             data.forEach(s => tMap.set(s.id, s));
 
             set({ tles: data, tleMap: tMap, loading: false });
 
-            // 2. Start Background Processing (Staggered Load)
             const cache = new Map<number, any>();
             let index = 0;
             const BATCH_SIZE = 500;
@@ -113,11 +123,10 @@ export const useSatelliteStore = create<SatelliteStore>()(
                 }
 
                 index = end;
-                // Update the cache incrementally
                 set({ satrecCache: new Map(cache) });
 
                 if (index < data.length) {
-                    setTimeout(processBatch, 16); // Run next batch
+                    setTimeout(processBatch, 16);
                 }
             };
             

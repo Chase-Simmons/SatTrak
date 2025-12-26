@@ -2,10 +2,10 @@
 
 import React, { useEffect, useRef, useMemo } from "react";
 import { useFrame } from "@react-three/fiber";
-import { InstancedMesh, Object3D, Vector3, Color } from "three";
+import { InstancedMesh, Object3D, Color, Points } from "three";
 import * as satellite from "satellite.js";
 import { filterSatellites } from "../utils/SatelliteSearch";
-import { useSatelliteStore, SatelliteTle } from "../hooks/useSatelliteStore";
+import { useSatelliteStore } from "../hooks/useSatelliteStore";
 import { getOrbitClass, getOrbitColor } from "../utils/OrbitalMath";
 
 // @ts-ignore
@@ -14,92 +14,82 @@ const satLib = satellite as any;
 const EARTH_RADIUS_KM = 6371;
 const SCALE_FACTOR = 1 / 1000;
 const MAX_INSTANCES = 50000;
+import { useShallow } from 'zustand/react/shallow';
 
 const SatelliteInstanced = () => {
-    const { tles, searchQuery, selectedIds, satrecCache } = useSatelliteStore();
+    const { tles, searchQuery, selectedIds, satrecCache, setHoveredId, selectSingle, setFocusedId } = useSatelliteStore(useShallow(state => ({
+        tles: state.tles,
+        searchQuery: state.searchQuery,
+        selectedIds: state.selectedIds,
+        satrecCache: state.satrecCache,
+        setHoveredId: state.setHoveredId,
+        selectSingle: state.selectSingle,
+        setFocusedId: state.setFocusedId
+    })));
     const meshRef = useRef<InstancedMesh>(null);
+    const hitProxyRef = useRef<Points>(null);
     const tempObject = useMemo(() => new Object3D(), []);
     const color = useMemo(() => new Color(), []);
     
-    // Optimized lookup for selection
     const selectedSet = useMemo(() => new Set(selectedIds), [selectedIds]);
 
-    // Parse TLEs into SatRecords (Filtered)
     const allMatchingRecords = useMemo(() => {
-        const list = filterSatellites(tles, searchQuery);
-        
-        return list.map(tle => {
-            const rec = satrecCache.get(tle.id);
-            if (!rec) return null;
-            return { id: tle.id, rec };
-        }).filter(Boolean) as any[];
-    }, [tles, searchQuery, satrecCache]);
+        return filterSatellites(tles, searchQuery);
+    }, [tles, searchQuery]);
 
-    // PROGRESSIVE LOADING REF (Avoids state-driven re-renders)
+    // Shared Buffers for hit-proxy
+    const hitPositions = useMemo(() => new Float32Array(MAX_INSTANCES * 3), []);
+    const hitIds = useMemo(() => new Float32Array(MAX_INSTANCES), []);
+
     const currentVisibleCount = useRef(0);
-    const updateIndex = useRef(0);
-    const prevRecordsRef = useRef<SatelliteTle[]>([]);
-    const CHUNK_SIZE = 500; 
 
-    useEffect(() => {
-        const prev = prevRecordsRef.current;
-        const current = allMatchingRecords;
-        
-        // Expansion Check: Is the new list a superset of the old one?
-        // Specifically, for "Clear Filter", the old list is usually a subset.
-        const isExpanding = prev.length > 0 && current.length > prev.length && 
-                           prev[0]?.id === current[0]?.id && 
-                           prev[prev.length-1]?.id === current[prev.length-1]?.id;
+    useFrame(({ clock, raycaster }) => {
+        const mesh = meshRef.current;
+        const proxy = hitProxyRef.current;
+        if (!mesh || !proxy || allMatchingRecords.length === 0) return;
 
-        if (isExpanding) {
-            // Keep currentVisibleCount and updateIndex! Seamless expansion.
-        } else {
-            // Significant change or shrinking: Reset to show fresh data
-            currentVisibleCount.current = 0;
-            updateIndex.current = 0;
+        raycaster.params.Points.threshold = 0.2;
+
+        if (currentVisibleCount.current > allMatchingRecords.length) {
+            currentVisibleCount.current = allMatchingRecords.length;
             
-            if (meshRef.current) {
-                for (let i = 0; i < MAX_INSTANCES; i++) {
-                    tempObject.position.set(0, 0, 0);
-                    tempObject.scale.setScalar(0);
-                    tempObject.updateMatrix();
-                    meshRef.current.setMatrixAt(i, tempObject.matrix);
-                }
-                meshRef.current.instanceMatrix.needsUpdate = true;
+            for (let i = allMatchingRecords.length; i < MAX_INSTANCES; i++) {
+                tempObject.position.set(0, 0, 0);
+                tempObject.scale.setScalar(0);
+                tempObject.updateMatrix();
+                mesh.setMatrixAt(i, tempObject.matrix);
             }
         }
-        
-        prevRecordsRef.current = allMatchingRecords;
-    }, [allMatchingRecords]);
 
-    useFrame(({ clock }) => {
-        const mesh = meshRef.current;
-        if (!mesh || allMatchingRecords.length === 0) return;
-
-        // 1. Progressively increase visibility (Slower for better interp)
+        // Accelerated ramp-up: 1000 per frame
         if (currentVisibleCount.current < allMatchingRecords.length) {
-            currentVisibleCount.current = Math.min(currentVisibleCount.current + 100, allMatchingRecords.length);
+            currentVisibleCount.current = Math.min(currentVisibleCount.current + 1000, allMatchingRecords.length);
         }
 
         const activeTotal = currentVisibleCount.current;
-        const start = updateIndex.current;
-        const end = Math.min(start + CHUNK_SIZE, activeTotal);
-
         const now = new Date();
-        for (let i = 0; i < activeTotal; i++) {
-            // Only update positions for the current chunk to save CPU
-            const isNewInStream = i >= start && i < end;
-            const isRegularUpdate = i % 10 === (clock.getElapsedTime() * 10 | 0) % 10; 
+        const proxyPos = proxy.geometry.attributes.position as any;
+        const proxyId = proxy.geometry.attributes.satId as any;
 
-            if (isNewInStream || isRegularUpdate) {
-                const sat = allMatchingRecords[i];
-                const pv = satLib.propagate(sat.rec, now);
+        for (let i = 0; i < activeTotal; i++) {
+            const sat = allMatchingRecords[i];
+            if (!sat) continue; 
+            
+            const rec = satrecCache.get(sat.id);
+            
+            if (rec) {
+                const pv = satLib.propagate(rec, now);
                 
                 if (pv && pv.position && typeof pv.position !== 'boolean') {
                     const p = pv.position;
-                    tempObject.position.set(p.x * SCALE_FACTOR, p.z * SCALE_FACTOR, -p.y * SCALE_FACTOR);
+                    const x = p.x * SCALE_FACTOR;
+                    const y = p.z * SCALE_FACTOR;
+                    const z = -p.y * SCALE_FACTOR;
 
-                    // selection coloring
+                    tempObject.position.set(x, y, z);
+                    proxyPos.setXYZ(i, x, y, z);
+                    if (proxyId) proxyId.setX(i, sat.id);
+
                     const isSelected = selectedSet.has(sat.id);
                     let scale = 1.0;
                     if (isSelected) {
@@ -118,19 +108,106 @@ const SatelliteInstanced = () => {
                     mesh.setMatrixAt(i, tempObject.matrix);
                     mesh.setColorAt(i, color);
                 }
+            } else {
+                tempObject.position.set(0, 0, 0);
+                tempObject.scale.setScalar(0);
+                tempObject.updateMatrix();
+                mesh.setMatrixAt(i, tempObject.matrix);
+                proxyPos.setXYZ(i, 0, 0, 0);
+                if (proxyId) proxyId.setX(i, -1);
             }
         }
 
         mesh.instanceMatrix.needsUpdate = true;
         if (mesh.instanceColor) mesh.instanceColor.needsUpdate = true;
-        updateIndex.current = end >= activeTotal ? 0 : end;
+        proxyPos.needsUpdate = true;
+        if (proxyId) proxyId.needsUpdate = true;
+
+        mesh.count = activeTotal; 
+        proxy.geometry.setDrawRange(0, activeTotal);
     });
 
+    const mouseDownPos = useRef<{ x: number, y: number } | null>(null);
+
     return (
-        <instancedMesh ref={meshRef} args={[undefined, undefined, MAX_INSTANCES]}>
-            <sphereGeometry args={[0.03, 6, 6]} />
-            <meshBasicMaterial color="#ffffff" />
-        </instancedMesh>
+        <group>
+            <instancedMesh ref={meshRef} args={[undefined, undefined, MAX_INSTANCES]} frustumCulled={false}>
+                <sphereGeometry args={[0.035, 6, 6]} />
+                <meshBasicMaterial transparent opacity={0.9} />
+            </instancedMesh>
+
+            <points 
+                ref={hitProxyRef}
+                onPointerMove={(e) => {
+                    e.stopPropagation();
+                    if (e.index !== undefined) {
+                        const geometry = (e.object as Points).geometry;
+                        const idAttr = geometry.getAttribute('satId');
+                        
+                        // Strict Attribute Read: If GPU isn't ready, we don't interact.
+                        // This prevents stale text from index guessing.
+                        let satId = -1;
+                        if (idAttr) {
+                             satId = idAttr.getX(e.index);
+                        } 
+
+                        if (satId > 0) {
+                            // Only time the *change* of hover
+                            if (satId !== useSatelliteStore.getState().hoveredId) {
+                                console.time('HoverInteract');
+                            }
+                            // Instant resolution with exact position fallback
+                            setHoveredId(satId, [e.point.x, e.point.y, e.point.z]);
+                        }
+                    }
+                }}
+                onPointerOut={() => setHoveredId(null)}
+                onPointerDown={(e) => {
+                    e.stopPropagation();
+                    mouseDownPos.current = { x: e.clientX, y: e.clientY };
+                } }
+                onPointerUp={(e) => {
+                    e.stopPropagation();
+                    if (!mouseDownPos.current) return;
+                    
+                    const dx = e.clientX - mouseDownPos.current.x;
+                    const dy = e.clientY - mouseDownPos.current.y;
+                    const dist = Math.sqrt(dx * dx + dy * dy);
+                    mouseDownPos.current = null;
+
+                    if (dist > 5) {
+                        setFocusedId(null);
+                        return;
+                    }
+
+                    if (e.index !== undefined) {
+                        const geometry = (e.object as Points).geometry;
+                        const idAttr = geometry.getAttribute('satId');
+
+                        let satId = -1;
+                        if (idAttr) {
+                             satId = idAttr.getX(e.index);
+                        }
+
+                        if (satId > 0) {
+                            selectSingle(satId);
+                        }
+                    }
+                }}
+            >
+                <bufferGeometry>
+                    <bufferAttribute
+                        attach="attributes-position"
+                        args={[hitPositions, 3]}
+                    />
+                    <bufferAttribute
+                        attach="attributes-satId"
+                        args={[hitIds, 1]}
+                    />
+                </bufferGeometry>
+                <pointsMaterial size={0.2} transparent opacity={0.0} depthWrite={false} />
+            </points>
+        </group>
     );
 };
 

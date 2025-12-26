@@ -29,26 +29,19 @@ public class TleFetcherService : SatTrak.Core.Services.ITleFetcherService
 
         try
         {
-            // Download Content
             var response = await _httpClient.GetStringAsync(ActiveSatellitesUrl);
             var lines = response.Split(new[] { '\r', '\n' }, StringSplitOptions.RemoveEmptyEntries);
 
             var tles = new Dictionary<int, Tle>();
-
-            // Parse CelesTrak GP TLE format (3 lines per satellite: Name, Line1, Line2)
             for (int i = 0; i < lines.Length; i += 3)
             {
                 if (i + 2 >= lines.Length) break;
-
                 var name = lines[i].Trim();
                 var line1 = lines[i + 1].Trim();
                 var line2 = lines[i + 2].Trim();
-
                 try
                 {
-                    // Use 3-line constructor to include Name.
                     var tleObj = new Tle(name, line1, line2);
-                    
                     if (!tles.ContainsKey((int)tleObj.NoradNumber))
                     {
                         tles.Add((int)tleObj.NoradNumber, tleObj);

@@ -138,72 +138,95 @@ const SceneReady = ({ onReady }: { onReady: (r: boolean) => void }) => {
 }
 
 const Globe = () => {
-    // const { satellites, connectionStatus } = useSatelliteStream(); // Legacy SignalR
     const fetchTles = useSatelliteStore(state => state.fetchTles);
     const tles = useSatelliteStore(state => state.tles);
     const loading = useSatelliteStore(state => state.loading);
+    const clearSelection = useSatelliteStore(state => state.clearSelection);
+    const setFocusedId = useSatelliteStore(state => state.setFocusedId);
     
     const [earthMesh, setEarthMesh] = useState<THREE.Mesh | null>(null);
     const [sceneReady, setSceneReady] = useState(false);
     
-    // Altitude HUD Refs
+    const mouseDownPos = useRef<{ x: number, y: number } | null>(null);
+
     const altBarRef = useRef<HTMLDivElement>(null);
     const altTextRef = useRef<HTMLDivElement>(null);
 
     React.useEffect(() => {
         fetchTles();
     }, []);
-
     return (
         <div className="relative w-full h-full bg-black">
+             {/* ... Source HUD ... */}
              <div 
                 className="absolute top-4 right-4 z-10 bg-black/50 p-2 rounded text-white font-mono pointer-events-none border border-white/20 text-right"
-                style={{ 
-                    position: 'absolute', 
-                    top: '1rem', 
-                    right: '1rem', 
-                    zIndex: 10, 
-                    backgroundColor: 'rgba(0,0,0,0.5)', 
-                    color: 'white' 
-                }}
+                style={{ position: 'absolute', top: '1rem', right: '1rem', zIndex: 10, backgroundColor: 'rgba(0,0,0,0.5)', color: 'white' }}
              >
                 <div>Source: Client-Side Propagation</div>
                 <div>Satellites: {tles.length} {loading && "(Loading...)"}</div>
             </div>
 
-            {/* UI Overlays (Outside Canvas) */}
             <SatellitePanel />
             <AltitudeOverlay barRef={altBarRef} textRef={altTextRef} />
 
-            <Canvas camera={{ position: [20, 35, 55], fov: 45, near: 0.1, far: 10000 }}>
+            <Canvas 
+                camera={{ position: [20, 35, 55], fov: 45, near: 0.1, far: 10000 }}
+                onPointerDown={(e) => {
+                    mouseDownPos.current = { x: e.clientX, y: e.clientY };
+                }}
+                onPointerMissed={(e) => {
+                    if (!mouseDownPos.current) return;
+                    const dx = e.clientX - mouseDownPos.current.x;
+                    const dy = e.clientY - mouseDownPos.current.y;
+                    const dist = Math.sqrt(dx * dx + dy * dy);
+                    
+                    if (dist > 5) {
+                        setFocusedId(null);
+                    }
+                    // Removed clearSelection() to prevent accidental deselection
+                    mouseDownPos.current = null;
+                }}
+            >
                 <color attach="background" args={["#000000"]} />
                 
-                {/* Celestial System (Sun, Moon, Lighting) */}
                 <CelestialBodies />
                 
-                {/* Solid Black Earth to occlude stars */}
-                <mesh ref={setEarthMesh}>
-                    <sphereGeometry args={[EARTH_RADIUS * 0.98, 32, 32]} />
+                <mesh 
+                    ref={setEarthMesh}
+                    onPointerMove={(e) => e.stopPropagation()}
+                    onPointerDown={(e) => {
+                        e.stopPropagation();
+                        mouseDownPos.current = { x: e.clientX, y: e.clientY };
+                    }}
+                    onPointerUp={(e) => {
+                        e.stopPropagation();
+                        if (!mouseDownPos.current) return;
+                        const dx = e.clientX - mouseDownPos.current.x;
+                        const dy = e.clientY - mouseDownPos.current.y;
+                        const dist = Math.sqrt(dx * dx + dy * dy);
+                        if (dist > 5) {
+                            setFocusedId(null);
+                        }
+                        // Removed clearSelection() to prevent accidental deselection
+                        mouseDownPos.current = null;
+                    }}
+                >
+                    <sphereGeometry args={[EARTH_RADIUS, 32, 32]} />
                     <meshBasicMaterial color="#000" />
                 </mesh>
 
                 {/* Lat/Lon Grid (Graticule) */}
                 <Graticule />
 
-                {/* Continent Outlines */}
                 <WorldLines />
                 
-                {/* Stars Background - Pushed out past the Sun */}
                 <Stars radius={3000} depth={50} count={5000} factor={4} saturation={0} fade speed={1} />
 
-                {/* Distance Grid - Only render after camera is positioned */}
                 {sceneReady && <DistanceGrid earthRef={{ current: earthMesh }} />}
                 <SceneReady onReady={setSceneReady} />
 
-                {/* Instanced Satellites */}
                 <SatelliteInstanced />
 
-                {/* Selected Orbit Path */}
                 <OrbitPath />
                 <SatelliteHighlights />
                 <SatelliteLabels />
@@ -211,10 +234,9 @@ const Globe = () => {
                 <CameraController />
                 <AltitudeLogic barRef={altBarRef} textRef={altTextRef} />
 
-                {/* Post-processing effects */}
                 <EffectComposer enableNormalPass={false}>
                     <Bloom 
-                        luminanceThreshold={0.2} 
+                        luminanceThreshold={0.18} 
                         mipmapBlur 
                         intensity={0.5} 
                         radius={0.5}

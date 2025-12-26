@@ -16,8 +16,6 @@ interface RingConfig {
 }
 
 const Ring = ({ altitudeKm, label, color = "#444", earthRef, orientation = 'xz', thickness = 0.05 }: { altitudeKm: number, label: string, color?: string, earthRef?: React.RefObject<THREE.Mesh | null>, orientation?: Orientation, thickness?: number }) => {
-    // Calculate radius in view units
-    // r = EarthRadius + (Alt / 1000)
     const radius = EARTH_RADIUS + (altitudeKm / 1000);
 
     let rotation: [number, number, number] = [Math.PI / 2, 0, 0];
@@ -98,6 +96,15 @@ const DistanceGrid = ({ earthRef }: { earthRef?: React.RefObject<THREE.Mesh | nu
         { altitudeKm: 80000, label: "80k" },
         { altitudeKm: 90000, label: "90k" },
         { altitudeKm: 100000, label: "100k" },
+        { altitudeKm: 200000, label: "200k", thickness: 0.1 },
+        { altitudeKm: 300000, label: "300k", thickness: 0.15 },
+        { altitudeKm: 400000, label: "400k", thickness: 0.2 },
+        { altitudeKm: 500000, label: "500k", thickness: 0.25 },
+        { altitudeKm: 600000, label: "600k", thickness: 0.3 },
+        { altitudeKm: 700000, label: "700k", thickness: 0.35 },
+        { altitudeKm: 800000, label: "800k", thickness: 0.4 },
+        { altitudeKm: 900000, label: "900k", thickness: 0.45 },
+        { altitudeKm: 1000000, label: "1M", thickness: 0.5 },
     ];
 
     const orientations: Orientation[] = ['xz', 'xy', 'yz'];

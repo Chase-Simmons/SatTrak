@@ -1,16 +1,13 @@
 using System;
 using System.Threading;
 using System.Threading.Tasks;
-using Microsoft.Extensions.DependencyInjection; // Add this
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using SatTrak.Core.Services;
 
 namespace SatTrak.Api.Workers;
 
-/// <summary>
-/// Background service that periodically fetches TLE data.
-/// </summary>
 public class TleWorker : BackgroundService
 {
     private readonly IServiceProvider _serviceProvider;
