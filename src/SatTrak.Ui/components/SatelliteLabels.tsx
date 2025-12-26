@@ -101,6 +101,8 @@ const HoverLabel = () => {
     const { camera } = useThree();
     const groupRef = useRef<THREE.Group>(null);
     const labelRef = useRef<HTMLDivElement>(null);
+    const textRef = useRef<HTMLDivElement>(null);
+    const lastHoverIdRef = useRef<{ id: number | null, hideFrames: number }>({ id: null, hideFrames: 0 });
 
     // Direct DOM update loop for zero-latency text
     useFrame(() => {
@@ -110,22 +112,13 @@ const HoverLabel = () => {
         const currentHoverId = state.hoveredId;
         const currentHoverPos = state.hoverPosition;
         
-        // 1. Update Text Content Directly (Bypassing React Reconciliation)
-        if (labelRef.current) {
-            if (currentHoverId) {
-                const sat = state.tleMap.get(currentHoverId);
-                // Force text update every frame to match store state instantly
-                const newText = sat ? (sat.name || `SAT-${sat.id}`) : `SAT-${currentHoverId}`;
-                if (labelRef.current.innerText !== newText) {
-                    labelRef.current.innerText = newText;
-                }
-                labelRef.current.style.display = 'block';
-            } else {
-                 labelRef.current.style.display = 'none';
-            }
+        // Anti-Ghosting: 3-Frame Blackout on ID Change
+        if (currentHoverId !== lastHoverIdRef.current.id) {
+             lastHoverIdRef.current.id = currentHoverId;
+             lastHoverIdRef.current.hideFrames = 3; // Reset to 3 frames
         }
 
-        // 2. Resolve Satellite Data for Position
+        // 1. Resolve Position FIRST (Always update position, even if hidden)
         let activeRec = null;
         if (currentHoverId) {
              activeRec = state.satrecCache.get(currentHoverId);
@@ -157,6 +150,28 @@ const HoverLabel = () => {
                 groupRef.current.position.set(x, y, z);
             }
         }
+
+        // 2. Update Text & Visibility
+        if (labelRef.current && textRef.current) {
+            if (currentHoverId) {
+                const sat = state.tleMap.get(currentHoverId);
+                const newText = sat ? (sat.name || `SAT-${sat.id}`) : `SAT-${currentHoverId}`;
+                
+                if (textRef.current.innerText !== newText) {
+                    textRef.current.innerText = newText;
+                }
+
+                // Only show if we are NOT in blackout period
+                if (lastHoverIdRef.current.hideFrames > 0) {
+                    labelRef.current.style.display = 'none';
+                    lastHoverIdRef.current.hideFrames--;
+                } else {
+                    labelRef.current.style.display = 'block';
+                }
+            } else {
+                 labelRef.current.style.display = 'none';
+            }
+        }
     });
 
     if (!showLabels) return null;
@@ -164,11 +179,11 @@ const HoverLabel = () => {
     return (
         <group ref={groupRef}>
             <Html center distanceFactor={15} style={{ pointerEvents: 'none' }} zIndexRange={[1000, 500]}>
-                 <div ref={labelRef} style={{
+                <div ref={labelRef} style={{
                     color: '#22d3ee',
                     fontSize: '10px', 
                     fontFamily: 'monospace',
-                    background: 'rgba(5, 10, 20, 0.95)',
+                    background: 'rgba(5, 10, 20, 0.95)', // Restore Glass effect
                     border: '1px solid rgba(34, 211, 238, 0.4)',
                     padding: '2px 8px',
                     borderRadius: '4px',
@@ -179,7 +194,19 @@ const HoverLabel = () => {
                     fontWeight: 'bold',
                     display: 'none' // Hidden by default, shown by loop
                 }}>
-                    INITIALIZING...
+                    <div ref={textRef}>INITIALIZING...</div>
+                    <div style={{
+                        position: 'absolute',
+                        left: '50%',
+                        top: '101%', // Critical Fix: Start exactly at bottom edge
+                        width: '10px',  // Slightly larger for better geometry
+                        height: '10px',
+                        background: '#050a14', // Solid Hex (matches rgba(5,10,20,1)) to mask border
+                        borderBottom: '1px solid rgba(34, 211, 238, 0.4)',
+                        borderRight: '1px solid rgba(34, 211, 238, 0.4)',
+                        transform: 'translateX(-50%) translateY(-43%) rotate(45deg)',
+                        zIndex: 10
+                    }} />
                 </div>
             </Html>
         </group>

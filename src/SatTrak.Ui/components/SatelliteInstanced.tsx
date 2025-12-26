@@ -1,12 +1,14 @@
 "use client";
 
-import React, { useEffect, useRef, useMemo } from "react";
+import React, { useEffect, useRef, useMemo, useCallback } from "react";
 import { useFrame } from "@react-three/fiber";
 import { InstancedMesh, Object3D, Color, Points } from "three";
 import * as satellite from "satellite.js";
 import { filterSatellites } from "../utils/SatelliteSearch";
 import { useSatelliteStore } from "../hooks/useSatelliteStore";
 import { getOrbitClass, getOrbitColor } from "../utils/OrbitalMath";
+import { useShallow } from 'zustand/react/shallow';
+import { perfState } from "../utils/PerformanceState";
 
 // @ts-ignore
 const satLib = satellite as any;
@@ -14,17 +16,17 @@ const satLib = satellite as any;
 const EARTH_RADIUS_KM = 6371;
 const SCALE_FACTOR = 1 / 1000;
 const MAX_INSTANCES = 50000;
-import { useShallow } from 'zustand/react/shallow';
 
 const SatelliteInstanced = () => {
-    const { tles, searchQuery, selectedIds, satrecCache, setHoveredId, selectSingle, setFocusedId } = useSatelliteStore(useShallow(state => ({
+    const { tles, searchQuery, selectedIds, satrecCache, setHoveredId, selectSingle, setFocusedId, isCameraRotating } = useSatelliteStore(useShallow(state => ({
         tles: state.tles,
         searchQuery: state.searchQuery,
         selectedIds: state.selectedIds,
         satrecCache: state.satrecCache,
         setHoveredId: state.setHoveredId,
         selectSingle: state.selectSingle,
-        setFocusedId: state.setFocusedId
+        setFocusedId: state.setFocusedId,
+        isCameraRotating: state.isCameraRotating
     })));
     const meshRef = useRef<InstancedMesh>(null);
     const hitProxyRef = useRef<Points>(null);
@@ -43,12 +45,27 @@ const SatelliteInstanced = () => {
 
     const currentVisibleCount = useRef(0);
 
+    const lastRaycastTime = useRef(0);
+
+    const customRaycast = useCallback((raycaster: any, intersects: any[]) => {
+        if (perfState.isRotating) return;
+
+        // Throttle to 20Hz (50ms) unless forced (e.g. Click)
+        const now = performance.now();
+        if (!perfState.forceCheck && (now - lastRaycastTime.current < 25)) {
+            return;
+        }
+        lastRaycastTime.current = now;
+
+        Points.prototype.raycast.call(hitProxyRef.current as any, raycaster, intersects);
+    }, []);
+
     useFrame(({ clock, raycaster }) => {
         const mesh = meshRef.current;
         const proxy = hitProxyRef.current;
         if (!mesh || !proxy || allMatchingRecords.length === 0) return;
 
-        raycaster.params.Points.threshold = 0.2;
+        raycaster.params.Points.threshold = 0.1;
 
         if (currentVisibleCount.current > allMatchingRecords.length) {
             currentVisibleCount.current = allMatchingRecords.length;
@@ -128,6 +145,7 @@ const SatelliteInstanced = () => {
     });
 
     const mouseDownPos = useRef<{ x: number, y: number } | null>(null);
+    const downSatIdRef = useRef<number | null>(null);
 
     return (
         <group>
@@ -138,6 +156,7 @@ const SatelliteInstanced = () => {
 
             <points 
                 ref={hitProxyRef}
+                raycast={customRaycast} 
                 onPointerMove={(e) => {
                     e.stopPropagation();
                     if (e.index !== undefined) {
@@ -152,10 +171,6 @@ const SatelliteInstanced = () => {
                         } 
 
                         if (satId > 0) {
-                            // Only time the *change* of hover
-                            if (satId !== useSatelliteStore.getState().hoveredId) {
-                                console.time('HoverInteract');
-                            }
                             // Instant resolution with exact position fallback
                             setHoveredId(satId, [e.point.x, e.point.y, e.point.z]);
                         }
@@ -165,6 +180,14 @@ const SatelliteInstanced = () => {
                 onPointerDown={(e) => {
                     e.stopPropagation();
                     mouseDownPos.current = { x: e.clientX, y: e.clientY };
+                    
+                    if (e.index !== undefined) {
+                        const geometry = (e.object as Points).geometry;
+                        const idAttr = geometry.getAttribute('satId');
+                        if (idAttr) {
+                             downSatIdRef.current = idAttr.getX(e.index);
+                        }
+                    }
                 } }
                 onPointerUp={(e) => {
                     e.stopPropagation();
@@ -176,7 +199,9 @@ const SatelliteInstanced = () => {
                     mouseDownPos.current = null;
 
                     if (dist > 5) {
+                        // Dragged
                         setFocusedId(null);
+                        downSatIdRef.current = null;
                         return;
                     }
 
@@ -184,15 +209,17 @@ const SatelliteInstanced = () => {
                         const geometry = (e.object as Points).geometry;
                         const idAttr = geometry.getAttribute('satId');
 
-                        let satId = -1;
+                        let upSatId = -1;
                         if (idAttr) {
-                             satId = idAttr.getX(e.index);
+                             upSatId = idAttr.getX(e.index);
                         }
 
-                        if (satId > 0) {
-                            selectSingle(satId);
+                        // Strict Check: Must be same satellite as MouseDown
+                        if (upSatId > 0 && upSatId === downSatIdRef.current) {
+                            selectSingle(upSatId);
                         }
                     }
+                    downSatIdRef.current = null;
                 }}
             >
                 <bufferGeometry>

@@ -4,7 +4,7 @@ import React, { useMemo, useRef, useState, Suspense } from "react";
 import { AltitudeLogic, AltitudeOverlay } from "./AltitudeIndicator";
 import SatelliteLabels from "./SatelliteLabels";
 import SatelliteHighlights from "./SatelliteHighlights";
-import { Canvas, useThree } from "@react-three/fiber";
+import { Canvas, useThree, useFrame } from "@react-three/fiber";
 import { OrbitControls, Stars } from "@react-three/drei";
 import { EffectComposer, Bloom } from "@react-three/postprocessing";
 import { Vector3 } from "three";
@@ -12,10 +12,13 @@ import { useSatelliteStore } from "../hooks/useSatelliteStore";
 import SatelliteInstanced from "./SatelliteInstanced";
 import SatellitePanel from "./SatellitePanel";
 import OrbitPath from "./OrbitPath";
+import HoverOrbit from "./HoverOrbit";
+import ZoomInertia from "./ZoomInertia";
 import DistanceGrid from "./DistanceGrid";
 import CelestialBodies from "./CelestialBodies";
 import CameraController from "./CameraController";
 import * as THREE from "three";
+import { perfState } from "../utils/PerformanceState";
 
 const EARTH_RADIUS = 6.371; // Normalized radius for visualization
 
@@ -30,6 +33,27 @@ const toCartesian = (lat: number, lon: number, alt: number) => {
   const y = r * Math.cos(phi);
 
   return new Vector3(x, y, z);
+};
+
+const FpsTracker = ({ fpsRef }: { fpsRef: React.RefObject<HTMLDivElement | null> }) => {
+  useFrame((state: any, delta: number) => {
+    if (!fpsRef.current) return;
+    // Update every 500ms approx (or every frame if preferred, but dampening is nicer)
+    // For simplicity, let's update every frame but use a smoothing simple text
+    // actually, let's do a simple counter
+    const fps = 1 / delta;
+    fpsRef.current.innerText = `FPS: ${fps.toFixed(0)}`;
+  });
+  return null;
+};
+
+const RotationStatus = () => {
+    const isRotating = useSatelliteStore(state => state.isCameraRotating);
+    return (
+        <div style={{ color: isRotating ? 'red' : 'lime' }}>
+            Rotating: {isRotating ? "YES" : "NO"}
+        </div>
+    );
 };
 
 const WorldLines = () => {
@@ -143,6 +167,7 @@ const Globe = () => {
     const loading = useSatelliteStore(state => state.loading);
     const clearSelection = useSatelliteStore(state => state.clearSelection);
     const setFocusedId = useSatelliteStore(state => state.setFocusedId);
+    const setIsCameraRotating = useSatelliteStore(state => state.setIsCameraRotating);
     
     const [earthMesh, setEarthMesh] = useState<THREE.Mesh | null>(null);
     const [sceneReady, setSceneReady] = useState(false);
@@ -151,19 +176,61 @@ const Globe = () => {
 
     const altBarRef = useRef<HTMLDivElement>(null);
     const altTextRef = useRef<HTMLDivElement>(null);
-
+    const fpsRef = useRef<HTMLDivElement>(null);
+    const controlsRef = useRef<any>(null); // Ref for OrbitControls access
+    const rotationTimeout = useRef<NodeJS.Timeout | null>(null);
+    const startRotationTimeout = useRef<NodeJS.Timeout | null>(null);
     React.useEffect(() => {
+        const setDown = () => { 
+            // INSTANT RESET: Treat every click as an intent to interact.
+            if (rotationTimeout.current) clearTimeout(rotationTimeout.current);
+            if (startRotationTimeout.current) {
+                clearTimeout(startRotationTimeout.current);
+                startRotationTimeout.current = null;
+            }
+            // FORCE CHECK: Bypass 20Hz throttle for instant click start
+            perfState.forceCheck = true;
+            perfState.isRotating = false;
+            useSatelliteStore.getState().setIsCameraRotating(false);
+        };
+        const setUp = () => { 
+            // UNLOCK ON UP: Ensure Click works even if held > 150ms
+            if (startRotationTimeout.current) {
+                clearTimeout(startRotationTimeout.current);
+                startRotationTimeout.current = null;
+            }
+            // Force Raycast ON so 3JS can find the target for the Click event
+            perfState.forceCheck = true; // High Precision for the release event
+            perfState.isRotating = false;
+            useSatelliteStore.getState().setIsCameraRotating(false); 
+            
+            // Relax back to Throttle Mode after brief window
+            setTimeout(() => {
+                perfState.forceCheck = false;
+            }, 100);
+        };
+        window.addEventListener('mousedown', setDown);
+        window.addEventListener('mouseup', setUp);
+
         fetchTles();
+        return () => {
+            if (rotationTimeout.current) clearTimeout(rotationTimeout.current);
+            window.removeEventListener('mousedown', setDown);
+            window.removeEventListener('mouseup', setUp);
+        };
     }, []);
+
     return (
         <div className="relative w-full h-full bg-black">
              {/* ... Source HUD ... */}
              <div 
-                className="absolute top-4 right-4 z-10 bg-black/50 p-2 rounded text-white font-mono pointer-events-none border border-white/20 text-right"
-                style={{ position: 'absolute', top: '1rem', right: '1rem', zIndex: 10, backgroundColor: 'rgba(0,0,0,0.5)', color: 'white' }}
+                className="absolute top-4 left-4 z-10 bg-black/50 p-2 rounded text-white font-mono pointer-events-none border border-white/20 text-left"
+                style={{ position: 'absolute', top: '1rem', left: '1rem', zIndex: 10, backgroundColor: 'rgba(0,0,0,0.5)', color: 'white' }}
              >
+                <div ref={fpsRef} className="font-bold text-green-400">FPS: --</div>
                 <div>Source: Client-Side Propagation</div>
                 <div>Satellites: {tles.length} {loading && "(Loading...)"}</div>
+                <RotationStatus />
             </div>
 
             <SatellitePanel />
@@ -194,6 +261,7 @@ const Globe = () => {
                 <mesh 
                     ref={setEarthMesh}
                     onPointerMove={(e) => e.stopPropagation()}
+                    onPointerOver={() => useSatelliteStore.getState().setHoveredId(null)}
                     onPointerDown={(e) => {
                         e.stopPropagation();
                         mouseDownPos.current = { x: e.clientX, y: e.clientY };
@@ -226,8 +294,10 @@ const Globe = () => {
                 <SceneReady onReady={setSceneReady} />
 
                 <SatelliteInstanced />
+                <FpsTracker fpsRef={fpsRef} />
 
                 <OrbitPath />
+                <HoverOrbit />
                 <SatelliteHighlights />
                 <SatelliteLabels />
 
@@ -243,18 +313,62 @@ const Globe = () => {
                     />
                 </EffectComposer>
 
+                <ZoomInertia controlsRef={controlsRef} />
+
                 <OrbitControls 
+                    ref={controlsRef}
                     makeDefault
                     enablePan={false} 
+                    enableZoom={false} // Handled by ZoomInertia
                     minDistance={6.5} 
                     maxDistance={110} 
                     enableDamping={true}
-                    dampingFactor={0.1}
-                    zoomSpeed={1.2}
+                    dampingFactor={0.05} // SMOOTH
                     mouseButtons={{
                         LEFT: THREE.MOUSE.ROTATE,
                         MIDDLE: THREE.MOUSE.PAN,
                         RIGHT: THREE.MOUSE.DOLLY
+                    }}
+                    onStart={() => {
+                        // Optional: can set true here if needed, but onChange handles dragging better
+                    }}
+                    onChange={() => {
+                        // Clear pending stop
+                        if (rotationTimeout.current) clearTimeout(rotationTimeout.current);
+
+                        // Unified Jitter Logic for all OrbitControls changes (Drag / Pan)
+                        // If NOT rotating and NO pending start, schedule start (150ms)
+                        // This protects clicks from triggering High FPS (Raycast Off) mode.
+                        if (!perfState.isRotating && !startRotationTimeout.current) {
+                            startRotationTimeout.current = setTimeout(() => {
+                                perfState.isRotating = true;
+                                setIsCameraRotating(true);
+                                startRotationTimeout.current = null;
+                            }, 150); 
+                        }
+
+                        // Schedule stop (200ms)
+                        rotationTimeout.current = setTimeout(() => {
+                            if (startRotationTimeout.current) {
+                                clearTimeout(startRotationTimeout.current);
+                                startRotationTimeout.current = null;
+                            }
+                            perfState.isRotating = false;
+                            setIsCameraRotating(false);
+                            rotationTimeout.current = null;
+                        }, 200);
+                    }}
+                    onEnd={() => {
+                         // Force stop immediately on explicit end
+                         if (startRotationTimeout.current) {
+                            clearTimeout(startRotationTimeout.current);
+                            startRotationTimeout.current = null;
+                         }
+                         if (rotationTimeout.current) clearTimeout(rotationTimeout.current);
+                         
+                         // CRITICAL FIX: Manually unlock Raycaster
+                         perfState.isRotating = false;
+                         setIsCameraRotating(false);
                     }}
                 />
             </Canvas>

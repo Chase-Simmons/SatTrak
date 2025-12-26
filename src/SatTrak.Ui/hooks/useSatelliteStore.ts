@@ -46,13 +46,16 @@ interface SatelliteStore {
     hoveredId: number | null;
     hoverPosition: [number, number, number] | null;
     setHoveredId: (id: number | null, pos?: [number, number, number] | null) => void;
+    
+    isCameraRotating: boolean;
+    setIsCameraRotating: (isRotating: boolean) => void;
 
     fetchTles: () => Promise<void>;
 }
 
 export const useSatelliteStore = create<SatelliteStore>()(
     persist(
-        (set) => ({
+        (set, get) => ({
             tles: [],
             tleMap: new Map(),
             satrecCache: new Map(),
@@ -68,6 +71,12 @@ export const useSatelliteStore = create<SatelliteStore>()(
             searchQuery: "",
             hoveredId: null,
             hoverPosition: null,
+            isCameraRotating: false,
+
+            setIsCameraRotating: (val) => {
+                if (get().isCameraRotating === val) return;
+                set({ isCameraRotating: val });
+            },
 
             toggleSelection: (id) => set((state) => {
                 const exists = state.selectedIds.includes(id);
