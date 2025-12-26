@@ -4,6 +4,7 @@ import React, { useEffect, useRef, useMemo } from "react";
 import { useFrame } from "@react-three/fiber";
 import { InstancedMesh, Object3D, Vector3, Color } from "three";
 import * as satellite from "satellite.js";
+import { filterSatellites } from "../utils/SatelliteSearch";
 import { useSatelliteStore } from "../hooks/useSatelliteStore";
 
 // @ts-ignore
@@ -23,11 +24,7 @@ const SatelliteInstanced = () => {
 
     // Parse TLEs into SatRecords (Filtered)
     const satRecords = useMemo(() => {
-        let list = tles;
-        if (searchQuery.trim().length > 0) {
-            const upQ = searchQuery.toUpperCase(); 
-            list = list.filter(t => t.name.includes(upQ) || t.id.toString().includes(upQ));
-        }
+        const list = filterSatellites(tles, searchQuery);
 
         return list.map(tle => ({
             id: tle.id,
@@ -68,19 +65,20 @@ const SatelliteInstanced = () => {
                 
                 if (isSelected) {
                     color.setHex(0xffffff); // Selected: Bright White
-                    scale = 4.0;            // Selected: Very Large
+                    // Smart Scaling: If too many selected, keep them smaller to prevent "hairball"
+                    scale = 1.5; // Standardized size for all selections
                 } else {
                     const rKm = Math.sqrt(pos.x*pos.x + pos.y*pos.y + pos.z*pos.z);
                     const altKm = rKm - EARTH_RADIUS_KM;
 
                     if (altKm < 2000) {
-                        color.setHex(0x00ff00); // LEO: Green
+                        color.setHex(0x00B200); // LEO: Green
                         scale = 1.0;
                     } else if (altKm < 30000) {
-                        color.setHex(0x00ffff); // MEO: Cyan
+                        color.setHex(0x00B2B2); // MEO: Cyan
                         scale = 1.5; 
                     } else {
-                        color.setHex(0xff0000); // GEO: Red
+                        color.setHex(0xFF0000); // GEO: Red
                         scale = 2.0; 
                     }
                 }

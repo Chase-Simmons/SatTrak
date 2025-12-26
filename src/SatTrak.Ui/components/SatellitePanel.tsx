@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useMemo } from 'react';
+import { filterSatellites } from "../utils/SatelliteSearch";
 import { useSatelliteStore } from '../hooks/useSatelliteStore';
 import styles from './SatellitePanel.module.css';
 
@@ -12,6 +13,7 @@ const SatellitePanel = () => {
         selectedIds, 
         toggleSelection, 
         clearSelection,
+        selectMultiple,
         showOrbits,
         showLabels,
         setShowOrbits,
@@ -21,46 +23,70 @@ const SatellitePanel = () => {
     const [visibleCount, setVisibleCount] = React.useState(100);
     const [isOpen, setIsOpen] = React.useState(true);
 
-    // Grouping by Common Constellations
-    const quickFilters = ["Starlink", "GPS", "GLONASS", "IRIDIUM", "NOAA", "GOES"];
+    // Grouping for a better Browse Experience
+    const filterCategories = [
+        {
+            name: "CONSTELLATIONS",
+            filters: [
+                { label: "STARLINK", query: "STARLINK" },
+                { label: "ONEWEB", query: "ONEWEB" },
+                { label: "IRIDIUM", query: "IRIDIUM" },
+                { label: "GPS", query: "GPS" },
+                { label: "GLONASS", query: "GLONASS" },
+                { label: "GALILEO", query: "GALILEO" },
+                { label: "BEIDOU", query: "BEIDOU" },
+            ]
+        },
+        {
+            name: "ORBITAL ZONES",
+            filters: [
+                { label: "LEO (Low)", query: "LEO" },
+                { label: "MEO (Mid)", query: "MEO" },
+                { label: "GEO (Fixed)", query: "GEO" },
+            ]
+        },
+        {
+            name: "MISSIONS & TYPES",
+            filters: [
+                { label: "ISS", query: "ISS" },
+                { label: "TIANGONG", query: "CSS" },
+                { label: "METEOR", query: "METEOR" },
+                { label: "DEBRIS", query: "DEBRIS" },
+                { label: "ROCKETS", query: "ROCKET" },
+            ]
+        }
+    ];
 
     // 1. Separate Selected (Pinned) vs Search Results
     const { selectedSats, filteredSats } = useMemo(() => {
         // A. Identify Selected Objects (Pinned)
-        const selected = tles.filter(s => selectedIds.includes(s.id));
+        let selected = tles.filter(s => selectedIds.includes(s.id));
+        // Sort Selected
+        selected.sort((a, b) => (a.name || "").localeCompare(b.name || ""));
         
-        // B. Identify Search Results (Excluding already selected ones to avoid duplicates?)
-        //    User said: "if a user unselects ... it should render as it normal would"
-        //    So we should probably dedup in the render list or just keep them separate.
-        //    Let's keep them conceptually separate lists but merge for display.
-        
+        // B. Identify Search Results
         let filtered = tles;
         if (searchQuery.trim().length > 0) {
-            const lowQ = searchQuery.toLowerCase();
-            filtered = filtered.filter(s => {
-                const name = s.name ? s.name.toLowerCase() : "";
-                const id = s.id.toString();
-                return name.includes(lowQ) || id.includes(lowQ);
-            });
+            filtered = filterSatellites(tles, searchQuery);
         }
         
-        // Exclude selected from filtered to prevent duplicates in the list if we just concat
-        // actually, standard pattern is to show them at top.
-        const filteredUnselected = filtered.filter(s => !selectedIds.includes(s.id));
+        let filteredUnselected = filtered.filter(s => !selectedIds.includes(s.id));
+        filteredUnselected.sort((a, b) => (a.name || "").localeCompare(b.name || ""));
 
         return { selectedSats: selected, filteredSats: filteredUnselected };
     }, [tles, searchQuery, selectedIds]);
 
     // Combined List for Display
-    // Order: Selected (Pinned) -> Filtered Results
     const displayList = useMemo(() => {
         return [...selectedSats, ...filteredSats];
     }, [selectedSats, filteredSats]);
 
-    // Reset pagination when search *or selection* changes significantly? 
-    // Actually, if we pin 10 items, they should just be at top. Pagination applies to the REST.
-    // Ideally we paginate the `displayList`.
-    
+    const handleSelectAll = () => {
+        const newIds = filteredSats.map(s => s.id);
+        const combined = Array.from(new Set([...selectedIds, ...newIds]));
+        selectMultiple(combined);
+    };
+
     const paginatedList = displayList.slice(0, visibleCount);
 
     return (
@@ -96,8 +122,7 @@ const SatellitePanel = () => {
             >
                 {isOpen ? '❮' : '❯'}
             </button>
-
-            {/* Header */}
+{/* Header */}
             <div className={styles.header}>
                 <div className={styles.title}>SAT TRAK // MISSION CONTROL</div>
                 <div className={styles.subtitle}>
@@ -105,39 +130,83 @@ const SatellitePanel = () => {
                 </div>
                 
                 {/* Search */}
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+                    <span style={{ fontSize: '10px', color: '#64748b', letterSpacing: '0.05em' }}>SEARCH FILTER</span>
+                    <div style={{ position: 'relative', cursor: 'help' }} className="group">
+                        <span style={{ fontSize: '10px', color: '#22d3ee', border: '1px solid #22d3ee', borderRadius: '50%', width:'14px', height:'14px', display:'flex', alignItems:'center', justifyContent:'center' }}>?</span>
+                        
+                        <div style={{
+                            display: 'none',
+                            position: 'absolute',
+                            right: 0,
+                            top: '20px',
+                            background: 'rgba(0,0,0,0.95)',
+                            border: '1px solid #333',
+                            padding: '12px',
+                            borderRadius: '4px',
+                            width: '240px',
+                            zIndex: 3000,
+                            fontSize: '11px',
+                            color: '#ccc',
+                            backdropFilter: 'blur(10px)',
+                            boxShadow: '0 10px 30px rgba(0,0,0,0.5)'
+                        }} className="tooltip-content">
+                            <strong style={{ color: '#22d3ee' }}>SIMPLE SEARCH GUIDE</strong><br/>
+                            <div style={{ marginTop: '8px', lineHeight: '1.6' }}>
+                                • <strong>LEO / GEO / MEO</strong> : Orbit zones<br/>
+                                • <strong>DEBRIS / ROCKET</strong> : Specific types<br/>
+                                • <strong>limit:100</strong> : Result count cap<br/>
+                                • <strong>A OR B</strong> : Match either term<br/>
+                                <br/>
+                                <em style={{color:'#666'}}>Ex: "Starlink OR OneWeb"</em>
+                            </div>
+                        </div>
+                        <style jsx>{`
+                            .group:hover .tooltip-content { display: block !important; }
+                        `}</style>
+                    </div>
+                </div>
                 <input 
                     type="text" 
-                    placeholder="SEARCH CATALOG (e.g. 'ISS', 'STARLINK')..." 
+                    placeholder="Search by name, ID, or zone (LEO, GEO)..." 
                     className={styles.searchBox}
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
                 />
 
-                {/* Quick Filters */}
-                <div className={styles.filterTags}>
-                    {quickFilters.map(Tag => (
-                        <button 
-                            key={Tag}
-                            onClick={() => setSearchQuery(Tag.toUpperCase())}
-                            className={styles.filterBtn}
-                        >
-                            {Tag}
-                        </button>
+                {/* Quick Filters - Categorized */}
+                <div className={styles.browseCategories}>
+                    {filterCategories.map(cat => (
+                        <div key={cat.name} style={{ marginBottom: '16px' }}>
+                            <div style={{ fontSize: '9px', color: '#475569', marginBottom: '8px', letterSpacing: '0.1em', fontWeight: 600 }}>{cat.name}</div>
+                            <div className={styles.filterTags}>
+                                {cat.filters.map(f => (
+                                    <button 
+                                        key={f.label}
+                                        onClick={() => setSearchQuery(f.query)}
+                                        className={styles.filterBtn}
+                                    >
+                                        {f.label}
+                                    </button>
+                                ))}
+                            </div>
+                        </div>
                     ))}
                     {searchQuery && (
                         <button 
                             onClick={() => setSearchQuery("")}
                             className={styles.clearBtn}
+                            style={{ width: '100%', marginTop: '8px', padding: '10px' }}
                         >
-                            CLEAR
+                            CLEAR ALL FILTERS
                         </button>
                     )}
                 </div>
 
                 {/* View Settings & Selection Actions */}
-                <div style={{ marginTop: '1rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '11px', color: '#94a3b8' }}>
-                    <div style={{ display: 'flex', gap: '8px' }}>
-                        <label style={{ display: 'flex', alignItems: 'center', gap: '4px', cursor: 'pointer' }}>
+                <div style={{ marginTop: '32px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '11px', color: '#94a3b8', borderTop: '1px solid rgba(255,255,255,0.05)', paddingTop: '16px' }}>
+                    <div style={{ display: 'flex', gap: '12px' }}>
+                        <label style={{ display: 'flex', alignItems: 'center', gap: '6px', cursor: 'pointer' }}>
                             <input 
                                 type="checkbox" 
                                 checked={showOrbits} 
@@ -145,7 +214,7 @@ const SatellitePanel = () => {
                             />
                             SHOW ORBITS
                         </label>
-                        <label style={{ display: 'flex', alignItems: 'center', gap: '4px', cursor: 'pointer' }}>
+                        <label style={{ display: 'flex', alignItems: 'center', gap: '6px', cursor: 'pointer' }}>
                             <input 
                                 type="checkbox" 
                                 checked={showLabels} 
@@ -154,14 +223,24 @@ const SatellitePanel = () => {
                             SHOW LABELS
                         </label>
                     </div>
-                    {selectedIds.length > 0 && (
-                        <button 
-                            onClick={() => clearSelection()}
-                            style={{ background: 'none', border: 'none', color: '#f87171', cursor: 'pointer', textDecoration: 'underline' }}
-                        >
-                            CLEAR SELECTION ({selectedIds.length})
-                        </button>
-                    )}
+                    <div style={{ display: 'flex', gap: '12px' }}>
+                        {filteredSats.length > 0 && searchQuery && (
+                            <button 
+                                onClick={handleSelectAll}
+                                style={{ background: 'none', border: 'none', color: '#22d3ee', cursor: 'pointer', textDecoration: 'underline', fontSize: '10px' }}
+                            >
+                                SELECT ALL ({filteredSats.length})
+                            </button>
+                        )}
+                        {selectedIds.length > 0 && (
+                            <button 
+                                onClick={() => clearSelection()}
+                                style={{ background: 'none', border: 'none', color: '#f87171', cursor: 'pointer', textDecoration: 'underline', fontSize: '10px' }}
+                            >
+                                CLEAR SELECTION ({selectedIds.length})
+                            </button>
+                        )}
+                    </div>
                 </div>
             </div>
 
@@ -186,7 +265,7 @@ const SatellitePanel = () => {
                                 >
                                     <div style={{ flex: 1 }}>
                                         <span className={styles.itemName}>{displayName}</span>
-                                        <span className={styles.itemId}>#{sat.id}</span>
+                                        <span className={styles.itemId}> #{sat.id}</span>
                                     </div>
                                     {isSelected && <span style={{ fontSize: '10px', color: '#22d3ee' }}>PINNED</span>}
                                 </div>

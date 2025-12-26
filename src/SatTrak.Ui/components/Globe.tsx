@@ -1,16 +1,19 @@
 "use client";
 
-import React, { useMemo, useRef, useState } from "react";
+import React, { useMemo, useRef, useState, Suspense } from "react";
 import { AltitudeLogic, AltitudeOverlay } from "./AltitudeIndicator";
 import SatelliteLabels from "./SatelliteLabels";
+import SatelliteHighlights from "./SatelliteHighlights";
 import { Canvas, useThree } from "@react-three/fiber";
 import { OrbitControls, Stars } from "@react-three/drei";
+import { EffectComposer, Bloom } from "@react-three/postprocessing";
 import { Vector3 } from "three";
 import { useSatelliteStore } from "../hooks/useSatelliteStore";
 import SatelliteInstanced from "./SatelliteInstanced";
 import SatellitePanel from "./SatellitePanel";
 import OrbitPath from "./OrbitPath";
 import DistanceGrid from "./DistanceGrid";
+import CelestialBodies from "./CelestialBodies";
 import * as THREE from "three";
 
 const EARTH_RADIUS = 6.371; // Normalized radius for visualization
@@ -139,7 +142,7 @@ const Globe = () => {
     const tles = useSatelliteStore(state => state.tles);
     const loading = useSatelliteStore(state => state.loading);
     
-    const earthRef = React.useRef<THREE.Mesh>(null);
+    const [earthMesh, setEarthMesh] = useState<THREE.Mesh | null>(null);
     const [sceneReady, setSceneReady] = useState(false);
     
     // Altitude HUD Refs
@@ -171,13 +174,14 @@ const Globe = () => {
             <SatellitePanel />
             <AltitudeOverlay barRef={altBarRef} textRef={altTextRef} />
 
-            <Canvas camera={{ position: [20, 35, 55], fov: 45 }}>
+            <Canvas camera={{ position: [20, 35, 55], fov: 45, near: 0.1, far: 10000 }}>
                 <color attach="background" args={["#000000"]} />
-                <ambientLight intensity={0.5} />
-                <pointLight position={[10, 10, 10]} />
+                
+                {/* Celestial System (Sun, Moon, Lighting) */}
+                <CelestialBodies />
                 
                 {/* Solid Black Earth to occlude stars */}
-                <mesh ref={earthRef}>
+                <mesh ref={setEarthMesh}>
                     <sphereGeometry args={[EARTH_RADIUS * 0.98, 32, 32]} />
                     <meshBasicMaterial color="#000" />
                 </mesh>
@@ -188,11 +192,11 @@ const Globe = () => {
                 {/* Continent Outlines */}
                 <WorldLines />
                 
-                {/* Stars Background */}
-                <Stars radius={100} depth={50} count={2000} factor={4} saturation={0} fade speed={1} />
+                {/* Stars Background - Pushed out past the Sun */}
+                <Stars radius={3000} depth={50} count={5000} factor={4} saturation={0} fade speed={1} />
 
                 {/* Distance Grid - Only render after camera is positioned */}
-                {sceneReady && <DistanceGrid earthRef={earthRef} />}
+                {sceneReady && <DistanceGrid earthRef={{ current: earthMesh }} />}
                 <SceneReady onReady={setSceneReady} />
 
                 {/* Instanced Satellites */}
@@ -200,15 +204,26 @@ const Globe = () => {
 
                 {/* Selected Orbit Path */}
                 <OrbitPath />
+                <SatelliteHighlights />
                 <SatelliteLabels />
 
                 {/* Logic Components */}
                 <AltitudeLogic barRef={altBarRef} textRef={altTextRef} />
 
+                {/* Post-processing effects */}
+                <EffectComposer enableNormalPass={false}>
+                    <Bloom 
+                        luminanceThreshold={0.2} 
+                        mipmapBlur 
+                        intensity={0.5} 
+                        radius={0.5}
+                    />
+                </EffectComposer>
+
                 <OrbitControls 
                     enablePan={false} 
                     minDistance={6.5} 
-                    maxDistance={110}
+                    maxDistance={110} 
                     enableDamping={true}
                     dampingFactor={0.1}
                     zoomSpeed={1.2}

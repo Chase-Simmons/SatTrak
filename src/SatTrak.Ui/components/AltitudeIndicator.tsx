@@ -13,8 +13,8 @@ export const AltitudeLogic = ({
     barRef, 
     textRef 
 }: { 
-    barRef: React.RefObject<HTMLDivElement>, 
-    textRef: React.RefObject<HTMLDivElement> 
+    barRef: React.RefObject<HTMLDivElement | null>, 
+    textRef: React.RefObject<HTMLDivElement | null> 
 }) => {
     useFrame(({ camera }) => {
         const dist = camera.position.length();
@@ -70,13 +70,13 @@ export const AltitudeOverlay = ({
     barRef, 
     textRef 
 }: { 
-    barRef: React.RefObject<HTMLDivElement>, 
-    textRef: React.RefObject<HTMLDivElement> 
+    barRef: React.RefObject<HTMLDivElement | null>, 
+    textRef: React.RefObject<HTMLDivElement | null> 
 }) => {
     return (
         <div style={{ 
             pointerEvents: 'none', 
-            zIndex: 40,
+            zIndex: 2000,
             position: 'absolute',
             top: 0,
             left: 0,
