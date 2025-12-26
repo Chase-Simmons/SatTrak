@@ -10,51 +10,124 @@ import { useSatelliteStore, SatelliteTle } from "../hooks/useSatelliteStore";
 const satLib = satellite as any;
 
 const SCALE_FACTOR = 1 / 1000;
-const SEGMENTS = 64; // Reduce segments slightly for speed
+const SEGMENTS = 32; // Reduce segments for 10k scaling
 const POINTS_PER_SAT = (SEGMENTS - 1) * 2;
-const BATCH_SIZE = 50; 
-const MAX_VISIBLE_ORBITS = 150; // Cap for visual clarity
+const BATCH_SIZE = 100; 
+const MAX_ORBITS = 10000; 
 
 const OrbitPath = () => {
-    const { tles, selectedIds, showOrbits, satrecCache } = useSatelliteStore();
+    const { tles, tleMap, selectedIds, showOrbits, satrecCache } = useSatelliteStore();
     const { camera } = useThree();
     
-    // Derived selected list
+    // Derived selected list using tleMap for O(1) lookup
     const selectedSats = useMemo(() => {
         if (!selectedIds || !selectedIds.length) return [];
-        return selectedIds.map(id => tles.find(t => t.id === id)).filter(Boolean) as SatelliteTle[];
-    }, [tles, selectedIds]);
+        return selectedIds.map(id => tleMap.get(id)).filter(Boolean) as SatelliteTle[];
+    }, [tleMap, selectedIds]);
 
     const geometryRef = useRef<BufferGeometry>(null);
-    
-    // Queue now stores the active subset
     const queueRef = useRef<{sat: SatelliteTle, index: number, rec: any}[]>([]);
     const processingRef = useRef(false);
-    
-    // Track active satellites for drawing
-    const [activeSats, setActiveSats] = useState<SatelliteTle[]>([]);
+    const [renderedCount, setRenderedCount] = useState(0);
+    const prevSelectedIdsRef = useRef<number[]>([]);
+    const processedIdsRef = useRef<Set<number>>(new Set());
 
-    // Initialize Buffer for MAX_VISIBLE_ORBITS
+    // Pre-allocate massive buffer for 10,000 satellites
     const bufferAttributes = useMemo(() => {
-        const totalVertices = MAX_VISIBLE_ORBITS * POINTS_PER_SAT;
+        const totalVertices = MAX_ORBITS * POINTS_PER_SAT;
         const positions = new Float32Array(totalVertices * 3);
         return { positions, totalVertices };
     }, []);
 
-    // Periodic Sort & Update
     const lastSort = useRef(0);
     const lastRefreshTime = useRef(0);
-    
-    // --- Progressive Sorting ---
     const sortingIndex = useRef(0);
     const candidatesBuffer = useRef<{sat: SatelliteTle, distSq: number, rec: any}[]>([]);
     
+    // Manage Orbit Generation
+    useEffect(() => {
+        const prev = prevSelectedIdsRef.current;
+        const curr = selectedIds;
+        
+        // 1. Check for literal selection changes (Hard Reset or Expansion)
+        const hasSelectionChanged = prev.length !== curr.length || !prev.every(id => curr.includes(id));
+        
+        if (hasSelectionChanged) {
+            const isExpanding = prev.length > 0 && curr.length > prev.length && prev.every(id => curr.includes(id));
+            
+            if (isExpanding) {
+                // APPPEND NEW SELECTION
+                const newIds = curr.filter(id => !prev.includes(id));
+                const newJobs = newIds.map(id => {
+                    const sat = tleMap.get(id);
+                    const rec = satrecCache.get(id);
+                    if (sat && rec) {
+                        processedIdsRef.current.add(id);
+                        return { sat, rec };
+                    }
+                    return null;
+                }).filter(Boolean) as {sat: SatelliteTle, rec: any}[];
+
+                const currentBaseIndex = renderedCount;
+                const appendJobs = newJobs.map((j, i) => ({ 
+                    sat: j.sat, 
+                    index: currentBaseIndex + i, 
+                    rec: j.rec 
+                }));
+                
+                queueRef.current = [...queueRef.current, ...appendJobs];
+                processingRef.current = true;
+            } else {
+                // HARD RESET (Significant change or cleaning)
+                processedIdsRef.current.clear();
+                const initialJobs = curr.map((id, i) => {
+                    const sat = tleMap.get(id);
+                    const rec = satrecCache.get(id);
+                    if (sat && rec) {
+                        processedIdsRef.current.add(id);
+                        return { sat, index: i, rec };
+                    }
+                    return null;
+                }).filter(Boolean) as {sat: SatelliteTle, index: number, rec: any}[];
+
+                queueRef.current = initialJobs;
+                processingRef.current = true;
+                setRenderedCount(0);
+            }
+            prevSelectedIdsRef.current = [...curr];
+        } else {
+            // 2. Cache Pickup: Selection is the same, but maybe some satrecs finished loading
+            const pendingIds = curr.filter(id => !processedIdsRef.current.has(id));
+            if (pendingIds.length > 0) {
+                const newAvailable = pendingIds.map(id => {
+                    const sat = tleMap.get(id);
+                    const rec = satrecCache.get(id);
+                    if (sat && rec) {
+                        processedIdsRef.current.add(id);
+                        return { sat, rec };
+                    }
+                    return null;
+                }).filter(Boolean) as {sat: SatelliteTle, rec: any}[];
+
+                if (newAvailable.length > 0) {
+                    const appendJobs = newAvailable.map((j, i) => ({ 
+                        sat: j.sat, 
+                        index: renderedCount + i, 
+                        rec: j.rec 
+                    }));
+                    queueRef.current = [...queueRef.current, ...appendJobs];
+                    processingRef.current = true;
+                }
+            }
+        }
+    }, [selectedIds, satrecCache, tleMap]);
+
     useFrame(({ clock }) => {
-        if (!showOrbits || selectedSats.length === 0) return;
+        if (!showOrbits) return;
 
         const now = clock.getElapsedTime();
-        
-        // 1. Process Generation Queue (Already Batched)
+
+        // 1. Process Generation Queue (Progressive Reveal)
         if (processingRef.current && geometryRef.current && queueRef.current.length > 0) {
              const batch = queueRef.current.splice(0, BATCH_SIZE);
              const positions = bufferAttributes.positions;
@@ -92,89 +165,37 @@ const OrbitPath = () => {
                 }
              });
              geometryRef.current.attributes.position.needsUpdate = true;
-             geometryRef.current.setDrawRange(0, activeSats.length * POINTS_PER_SAT);
+             
+             // Update visibility count only if we are in a "fresh" build
+             if (renderedCount < selectedSats.length) {
+                setRenderedCount(prev => Math.min(prev + batch.length, selectedSats.length));
+             }
 
              if (queueRef.current.length === 0) processingRef.current = false;
-             return;
-        }
-
-        // 2. Progressive Sorting (Prevents spike on long lists)
-        const date = new Date();
-        const camPos = camera.position;
-        const SORT_BATCH_SIZE = 500;
-        
-        if (selectedSats.length > MAX_VISIBLE_ORBITS) {
-            const start = sortingIndex.current;
-            const end = Math.min(start + SORT_BATCH_SIZE, selectedSats.length);
-            
-            for (let i = start; i < end; i++) {
-                const sat = selectedSats[i];
-                const rec = satrecCache.get(sat.id);
-                if (!rec) continue;
-                const pv = satLib.propagate(rec, date);
-                if (pv && pv.position && typeof pv.position !== 'boolean') {
-                    const p = pv.position;
-                    const dx = (p.x*SCALE_FACTOR) - camPos.x;
-                    const dy = (p.z*SCALE_FACTOR) - camPos.y; 
-                    const dz = (-p.y*SCALE_FACTOR) - camPos.z;
-                    const distSq = dx*dx + dy*dy + dz*dz;
-                    candidatesBuffer.current.push({ sat, distSq, rec });
-                }
-            }
-            
-            sortingIndex.current = end >= selectedSats.length ? 0 : end;
-            
-            // Cycle finished or list is processed
-            if (sortingIndex.current === 0 && candidatesBuffer.current.length > 0) {
-                candidatesBuffer.current.sort((a,b) => a.distSq - b.distSq);
-                const results = candidatesBuffer.current.slice(0, MAX_VISIBLE_ORBITS);
-                const topN = results.map(c => c.sat);
+        } else if (!processingRef.current && selectedSats.length > 0) {
+            // 2. Periodic Refresh: Keep paths synced with moving satellites
+            // Check every 20 seconds to shift the start of the lines to "now"
+            if (now - lastRefreshTime.current > 20) {
+                lastRefreshTime.current = now;
+                const results = selectedSats.map(sat => ({ 
+                    sat, 
+                    rec: satrecCache.get(sat.id) 
+                })).filter(r => r.rec);
                 
-                // Refresh if needed
-                const setChanged = topN.length !== activeSats.length || topN[0]?.id !== activeSats[0]?.id;
-                if (setChanged || (now - lastRefreshTime.current > 30)) {
-                    lastRefreshTime.current = now;
-                    setActiveSats(topN);
-                    queueRef.current = results.map((r, i) => ({ sat: r.sat, index: i, rec: r.rec }));
-                    processingRef.current = true;
-                }
-                candidatesBuffer.current = []; // Reset for next cycle
-            }
-        } else {
-            // Instant sort for small number of selections
-            if (now - lastSort.current < 0.5) return;
-            lastSort.current = now;
-            
-            const candidates = [];
-            for (let i = 0; i < selectedSats.length; i++) {
-                const sat = selectedSats[i];
-                const rec = satrecCache.get(sat.id);
-                if (!rec) continue;
-                const pv = satLib.propagate(rec, date);
-                if (pv && pv.position && typeof pv.position !== 'boolean') {
-                    const p = pv.position;
-                    const dx = (p.x*SCALE_FACTOR) - camPos.x;
-                    const dy = (p.z*SCALE_FACTOR) - camPos.y; 
-                    const dz = (-p.y*SCALE_FACTOR) - camPos.z;
-                    candidates.push({ sat, distSq: dx*dx + dy*dy + dz*dz, rec });
-                }
-            }
-            candidates.sort((a,b) => a.distSq - b.distSq);
-            const topN = candidates.map(c => c.sat);
-            
-            if (topN.length !== activeSats.length || topN[0]?.id !== activeSats[0]?.id) {
-                setActiveSats(topN);
-                queueRef.current = candidates.map((c, i) => ({ sat: c.sat, index: i, rec: c.rec }));
+                queueRef.current = results.map((r, i) => ({ sat: r.sat, index: i, rec: r.rec }));
                 processingRef.current = true;
+                // No setRenderedCount(0) here = No flicker!
             }
+        }
+        
+        if (geometryRef.current) {
+            geometryRef.current.setDrawRange(0, renderedCount * POINTS_PER_SAT);
         }
     });
 
-    if (!showOrbits || selectedSats.length === 0) return null;
-
     return (
         <group>
-            <lineSegments>
+            <lineSegments frustumCulled={false}>
                 <bufferGeometry ref={geometryRef}>
                     <bufferAttribute
                         attach="attributes-position"
@@ -184,12 +205,9 @@ const OrbitPath = () => {
                 </bufferGeometry>
                 <lineBasicMaterial color="#00ffff" opacity={0.3} transparent linewidth={1} />
             </lineSegments>
-            
         </group>
     );
 };
-
-
 
 import * as THREE from "three";
 

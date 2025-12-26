@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useMemo, useRef } from "react";
+import React, { useMemo, useRef, useEffect } from "react";
 import { useFrame } from "@react-three/fiber";
 import * as satellite from "satellite.js";
 import { useSatelliteStore } from "../hooks/useSatelliteStore";
@@ -9,6 +9,7 @@ import * as THREE from "three";
 // @ts-ignore
 const satLib = satellite as any;
 const SCALE_FACTOR = 1 / 1000;
+const MAX_HIGHLIGHTS = 10000;
 
 const SatelliteHighlights = () => {
     const { tleMap, selectedIds, satrecCache } = useSatelliteStore();
@@ -27,11 +28,23 @@ const SatelliteHighlights = () => {
     const meshRef = useRef<THREE.InstancedMesh>(null);
     const dummy = useMemo(() => new THREE.Object3D(), []);
 
+    // Reset buffer visibility when selection clears
+    useEffect(() => {
+        if (selectedIds.length === 0 && meshRef.current) {
+            meshRef.current.count = 0;
+            meshRef.current.instanceMatrix.needsUpdate = true;
+        }
+    }, [selectedIds.length]);
+
     useFrame(({ clock }) => {
         const mesh = meshRef.current;
-        if (!mesh || selectedSats.length === 0) return;
+        if (!mesh) return;
         
         const total = selectedSats.length;
+        mesh.count = total;
+
+        if (total === 0) return;
+        
         const start = updateIndex.current;
         const end = Math.min(start + CHUNK_SIZE, total);
         const now = new Date();
@@ -57,12 +70,10 @@ const SatelliteHighlights = () => {
         updateIndex.current = end >= total ? 0 : end;
     });
 
-    if (selectedSats.length === 0) return null;
-
     return (
-        <instancedMesh ref={meshRef} args={[undefined, undefined, selectedSats.length]}>
+        <instancedMesh ref={meshRef} args={[undefined, undefined, MAX_HIGHLIGHTS]}>
             <sphereGeometry args={[0.08, 8, 8]} />
-            <meshBasicMaterial color="#00B2B2" wireframe />
+            <meshBasicMaterial color="#00B2B2" wireframe transparent opacity={0.6} />
         </instancedMesh>
     );
 };

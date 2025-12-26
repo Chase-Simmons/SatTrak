@@ -101,6 +101,21 @@ const SatellitePanel = () => {
     const [pinnedVisibleCount, setPinnedVisibleCount] = React.useState(100);
     const [isOpen, setIsOpen] = React.useState(true);
     const [showSettings, setShowSettings] = React.useState(false);
+    const [showHelp, setShowHelp] = React.useState(false);
+    
+    // UX: Track which browse categories are expanded
+    const [expandedCategories, setExpandedCategories] = React.useState<Set<string>>(new Set([
+        "CONSTELLATIONS", 
+        "ORBITAL ZONES",
+        "OBJECT TYPES"
+    ]));
+
+    const toggleCategory = (name: string) => {
+        const next = new Set(expandedCategories);
+        if (next.has(name)) next.delete(name);
+        else next.add(name);
+        setExpandedCategories(next);
+    };
 
     // Grouping for a better Browse Experience
     const filterCategories = [
@@ -114,6 +129,7 @@ const SatellitePanel = () => {
                 { label: "GLONASS", query: "GLONASS" },
                 { label: "GALILEO", query: "GALILEO" },
                 { label: "BEIDOU", query: "BEIDOU" },
+                { label: "GLOBALSTAR", query: "GLOBALSTAR" },
             ]
         },
         {
@@ -125,11 +141,55 @@ const SatellitePanel = () => {
             ]
         },
         {
-            name: "MISSIONS & TYPES",
+            name: "COMMERCIAL GIANTS",
             filters: [
-                { label: "ISS", query: "ISS" },
-                { label: "TIANGONG", query: "CSS" },
+                { label: "INTELSAT", query: "INTELSAT" },
+                { label: "SES", query: "SES" },
+                { label: "EUTELSAT", query: "EUTELSAT" },
+                { label: "TELESAT", query: "TELESAT" },
+                { label: "INMARSAT", query: "INMARSAT" },
+            ]
+        },
+        {
+            name: "MILITARY & DEFENSE",
+            filters: [
+                { label: "USA- (MIL)", query: "USA-" },
+                { label: "YAOGAN", query: "YAOGAN" },
+                { label: "COSMOS", query: "COSMOS" },
+                { label: "NROL", query: "NROL" },
+            ]
+        },
+        {
+            name: "SPACE NATIONS",
+            filters: [
+                { label: "USA", query: "USA" },
+                { label: "RUSSIA", query: "RUSSIA" },
+                { label: "CHINA", query: "CHINA" },
+                { label: "INDIA", query: "INDIA" },
+                { label: "JAPAN", query: "JAPAN" },
+            ]
+        },
+        {
+            name: "METEOROLOGY & SCIENCE",
+            filters: [
+                { label: "NOAA", query: "NOAA" },
+                { label: "GOES", query: "GOES" },
                 { label: "METEOR", query: "METEOR" },
+                { label: "ISS", query: "ISS" },
+                { label: "TIANGONG", query: "TIANGONG" },
+            ]
+        },
+        {
+            name: "SPECIALIZED ORBITS",
+            filters: [
+                { label: "MOLNIYA", query: "MOLNIYA" },
+                { label: "TUNDRA", query: "TUNDRA" },
+                { label: "O3B", query: "O3B" },
+            ]
+        },
+        {
+            name: "OBJECT TYPES",
+            filters: [
                 { label: "DEBRIS", query: "DEBRIS" },
                 { label: "ROCKETS", query: "ROCKET" },
             ]
@@ -166,8 +226,7 @@ const SatellitePanel = () => {
             const toAdd = newIds.filter(id => !alreadySelected.has(id));
             
             let currentSelection = [...selectedIds];
-            // ULTRA-SHARP THROTTLING: Use 20 items if list is massive (>1000)
-            const BATCH_SIZE = toAdd.length > 1000 ? 20 : 200; 
+            const BATCH_SIZE = 200; 
             let offset = 0;
             
             const addBatch = () => {
@@ -226,11 +285,17 @@ const SatellitePanel = () => {
             </button>
             {/* Header */}
             <div className={styles.header}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-                    <div className={styles.title}>SAT TRAK // MISSION CONTROL</div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '12px' }}>
+                    <div className={styles.title}>
+                        <span style={{ color: '#06b6d4' }}>SAT TRAK</span>
+                        <span style={{ color: '#64748b', fontSize: '11px', fontWeight: 500, marginLeft: '4px' }}> // MISSION CONTROL</span>
+                    </div>
                     <button 
                         className={styles.settingsBtn}
-                        onClick={() => setShowSettings(!showSettings)}
+                        onClick={() => {
+                            setShowSettings(!showSettings);
+                            setShowHelp(false);
+                        }}
                     >
                         {showSettings ? "CLOSE" : "SETTINGS"}
                     </button>
@@ -238,6 +303,108 @@ const SatellitePanel = () => {
                 <div className={styles.subtitle}>
                     CATALOG SIZE: {tles.length.toLocaleString()} OBJECTS
                 </div>
+                
+                <div style={{ position: 'relative', marginBottom: '16px' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+                        <div style={{ fontSize: '10px', color: '#64748b', letterSpacing: '0.1em', fontWeight: 'bold' }}>SEARCH FILTER</div>
+                        <button 
+                            className={styles.settingsBtn}
+                            style={{ padding: '0px 5px', fontSize: '12px', borderRadius: '50%' }}
+                            onClick={(e) => {
+                                e.stopPropagation();
+                                setShowHelp(!showHelp);
+                                setShowSettings(false);
+                            }}
+                        >
+                            ?
+                        </button>
+                    </div>
+                
+                <div style={{ position: 'relative' }}>
+                    <input 
+                        type="text" 
+                        className={styles.searchBox}
+                        placeholder="Search by name, ID or orbit..."
+                        value={searchQuery}
+                        onChange={(e) => setSearchQuery(e.target.value)}
+                    />
+                    {searchQuery && (
+                        <button 
+                            className={styles.searchClear}
+                            onClick={() => setSearchQuery("")}
+                            title="Clear search"
+                        >
+                            ✕
+                        </button>
+                    )}
+                </div>
+                </div>
+
+                {showHelp && (
+                    <div className={styles.settingsOverlay}>
+                        <div className={styles.settingsTitle}>
+                            <span>SIMPLE SEARCH GUIDE</span>
+                            <button className={styles.utilityBtn} onClick={() => setShowHelp(false)}>CLOSE</button>
+                        </div>
+                        <div className={styles.helpGrid}>
+                            <div className={styles.helpGroup}>
+                                <div className={styles.helpLabel}>Basic Syntax</div>
+                                <div className={styles.syntaxItem}>
+                                    <span className={styles.syntaxCode}>LEO / GEO / MEO</span>
+                                    <span className={styles.syntaxDesc}>Orbit zones (Low/Medium/Geostationary)</span>
+                                </div>
+                                <div className={styles.syntaxItem}>
+                                    <span className={styles.syntaxCode}>DEBRIS / ROCKET</span>
+                                    <span className={styles.syntaxDesc}>Filter by specific object types</span>
+                                </div>
+                                <div className={styles.syntaxItem}>
+                                    <span className={styles.syntaxCode}>limit:100</span>
+                                    <span className={styles.syntaxDesc}>Cap results to a specific number</span>
+                                </div>
+                            </div>
+
+                            <div className={styles.helpGroup}>
+                                <div className={styles.helpLabel}>Deep Search Tags</div>
+                                <div className={styles.syntaxItem}>
+                                    <span className={styles.syntaxCode}>year:2024</span>
+                                    <span className={styles.syntaxDesc}>Filter by launch year</span>
+                                </div>
+                                <div className={styles.syntaxItem}>
+                                    <span className={styles.syntaxCode}>country:USA</span>
+                                    <span className={styles.syntaxDesc}>Search by nation (USA, RUSSIA, etc.)</span>
+                                </div>
+                                <div className={styles.syntaxItem}>
+                                    <span className={styles.syntaxCode}>MILITARY</span>
+                                    <span className={styles.syntaxDesc}>Alias for common classification prefixes</span>
+                                </div>
+                            </div>
+
+                            <div className={styles.helpGroup}>
+                                <div className={styles.helpLabel}>Advanced Logic</div>
+                                <div className={styles.syntaxItem}>
+                                    <span className={styles.syntaxCode}>A OR B</span>
+                                    <span className={styles.syntaxDesc}>Find satellites matching either term</span>
+                                </div>
+                                <div className={styles.syntaxItem}>
+                                    <span className={styles.syntaxCode}>A and B</span>
+                                    <span className={styles.syntaxDesc}>Match both terms (Default behavior)</span>
+                                </div>
+                            </div>
+
+                            <div className={styles.helpGroup}>
+                                <div className={styles.helpLabel}>Examples</div>
+                                <div className={styles.syntaxItem}>
+                                    <span className={styles.syntaxCode}>"year:1998 ISS"</span>
+                                    <span className={styles.syntaxDesc}>Find the ISS (Launched 1998)</span>
+                                </div>
+                                <div className={styles.syntaxItem}>
+                                    <span className={styles.syntaxCode}>"USA and MEO"</span>
+                                    <span className={styles.syntaxDesc}>Find US constellation in Medium Orbit</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                )}
                 
                 {showSettings && (
                     <div className={styles.settingsOverlay}>
@@ -284,76 +451,58 @@ const SatellitePanel = () => {
                     </div>
                 )}
                 
-                {/* Search */}
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
-                    <span style={{ fontSize: '10px', color: '#64748b', letterSpacing: '0.05em' }}>SEARCH FILTER</span>
-                    <div style={{ position: 'relative', cursor: 'help' }} className="group">
-                        <span style={{ fontSize: '10px', color: '#22d3ee', border: '1px solid #22d3ee', borderRadius: '50%', width:'14px', height:'14px', display:'flex', alignItems:'center', justifyContent:'center' }}>?</span>
-                        
-                        <div style={{
-                            display: 'none',
-                            position: 'absolute',
-                            right: 0,
-                            top: '20px',
-                            background: 'rgba(0,0,0,0.95)',
-                            border: '1px solid #333',
-                            padding: '12px',
-                            borderRadius: '4px',
-                            width: '240px',
-                            zIndex: 3000,
-                            fontSize: '11px',
-                            color: '#ccc',
-                            backdropFilter: 'blur(10px)',
-                            boxShadow: '0 10px 30px rgba(0,0,0,0.5)'
-                        }} className="tooltip-content">
-                            <strong style={{ color: '#22d3ee' }}>SIMPLE SEARCH GUIDE</strong><br/>
-                            <div style={{ marginTop: '8px', lineHeight: '1.6' }}>
-                                • <strong>LEO / GEO / MEO</strong> : Orbit zones<br/>
-                                • <strong>DEBRIS / ROCKET</strong> : Specific types<br/>
-                                • <strong>limit:100</strong> : Result count cap<br/>
-                                • <strong>A OR B</strong> : Match either term<br/>
-                                <br/>
-                                <em style={{color:'#666'}}>Ex: "Starlink OR OneWeb"</em>
-                            </div>
-                        </div>
-                        <style jsx>{`
-                            .group:hover .tooltip-content { display: block !important; }
-                        `}</style>
-                    </div>
-                </div>
-                <input 
-                    type="text" 
-                    placeholder="Search by name, ID, or zone (LEO, GEO)..." 
-                    className={styles.searchBox}
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                />
 
                 {/* Quick Filters - Categorized */}
                 <div className={styles.browseCategories}>
-                    {filterCategories.map(cat => (
-                        <div key={cat.name} style={{ marginBottom: '16px' }}>
-                            <div style={{ fontSize: '9px', color: '#475569', marginBottom: '8px', letterSpacing: '0.1em', fontWeight: 600 }}>{cat.name}</div>
+                    {filterCategories.map((group) => {
+                const isExpanded = expandedCategories.has(group.name);
+                return (
+                    <div key={group.name} style={{ marginBottom: isExpanded ? '16px' : '4px' }}>
+                        <div 
+                            className={styles.categoryHeader} 
+                            onClick={() => toggleCategory(group.name)}
+                        >
+                            <span>{group.name}</span>
+                            <span className={styles.chevron} style={{ 
+                                transform: isExpanded ? 'rotate(0deg)' : 'rotate(-90deg)',
+                                opacity: 0.5 
+                            }}>
+                                ▼
+                            </span>
+                        </div>
+                        
+                        {isExpanded && (
                             <div className={styles.filterTags}>
-                                {cat.filters.map(f => (
-                                    <button 
+                                {group.filters.map((f) => (
+                                    <button
                                         key={f.label}
-                                        onClick={() => setSearchQuery(f.query)}
-                                        className={styles.filterBtn}
+                                        className={`${styles.filterBtn} ${searchQuery.toUpperCase().includes(f.query.toUpperCase()) ? styles.active : ""}`}
+                                        onClick={() => {
+                                            const upperQuery = searchQuery.toUpperCase();
+                                            const filterQuery = f.query.toUpperCase();
+
+                                            if (upperQuery === filterQuery) {
+                                                setSearchQuery("");
+                                            } else {
+                                                setSearchQuery(f.query);
+                                            }
+                                        }}
                                     >
                                         {f.label}
                                     </button>
                                 ))}
                             </div>
-                        </div>
-                    ))}
+                        )}
+                    </div>
+                );
+            })}
                     {searchQuery && (
                         <button 
                             onClick={() => setSearchQuery("")}
-                            className={styles.clearBtn}
+                            className={styles.resetSearchBtn}
                             style={{ width: '100%' }}
                         >
-                            CLEAR ALL FILTERS
+                            RESET SEARCH
                         </button>
                     )}
                 </div>
@@ -374,7 +523,7 @@ const SatellitePanel = () => {
                                 onClick={() => clearSelection()}
                                 className={`${styles.utilityBtn} ${styles.utilityBtnDanger}`}
                             >
-                                CLEAR SELECTION ({selectedIds.length})
+                                UNSELECT ALL ({selectedIds.length})
                             </button>
                         )}
                     </div>

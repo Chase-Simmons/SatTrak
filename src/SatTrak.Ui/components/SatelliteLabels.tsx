@@ -124,7 +124,7 @@ const SatelliteLabels = () => {
             if (!rec) continue;
             
             const pv = satLib.propagate(rec, date);
-            if (pv.position && typeof pv.position !== 'boolean') {
+            if (pv && pv.position && typeof pv.position !== 'boolean') {
                 const p = pv.position;
                 const v = new Vector3(p.x * SCALE_FACTOR, p.z * SCALE_FACTOR, -p.y * SCALE_FACTOR);
                 

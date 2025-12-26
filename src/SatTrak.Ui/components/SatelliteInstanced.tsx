@@ -5,7 +5,7 @@ import { useFrame } from "@react-three/fiber";
 import { InstancedMesh, Object3D, Vector3, Color } from "three";
 import * as satellite from "satellite.js";
 import { filterSatellites } from "../utils/SatelliteSearch";
-import { useSatelliteStore } from "../hooks/useSatelliteStore";
+import { useSatelliteStore, SatelliteTle } from "../hooks/useSatelliteStore";
 import { getOrbitClass, getOrbitColor } from "../utils/OrbitalMath";
 
 // @ts-ignore
@@ -38,21 +38,38 @@ const SatelliteInstanced = () => {
     // PROGRESSIVE LOADING REF (Avoids state-driven re-renders)
     const currentVisibleCount = useRef(0);
     const updateIndex = useRef(0);
+    const prevRecordsRef = useRef<SatelliteTle[]>([]);
     const CHUNK_SIZE = 500; 
 
     useEffect(() => {
-        currentVisibleCount.current = 0;
-        updateIndex.current = 0;
+        const prev = prevRecordsRef.current;
+        const current = allMatchingRecords;
         
-        if (meshRef.current) {
-            for (let i = 0; i < MAX_INSTANCES; i++) {
-                tempObject.position.set(0, 0, 0);
-                tempObject.scale.setScalar(0);
-                tempObject.updateMatrix();
-                meshRef.current.setMatrixAt(i, tempObject.matrix);
+        // Expansion Check: Is the new list a superset of the old one?
+        // Specifically, for "Clear Filter", the old list is usually a subset.
+        const isExpanding = prev.length > 0 && current.length > prev.length && 
+                           prev[0]?.id === current[0]?.id && 
+                           prev[prev.length-1]?.id === current[prev.length-1]?.id;
+
+        if (isExpanding) {
+            // Keep currentVisibleCount and updateIndex! Seamless expansion.
+        } else {
+            // Significant change or shrinking: Reset to show fresh data
+            currentVisibleCount.current = 0;
+            updateIndex.current = 0;
+            
+            if (meshRef.current) {
+                for (let i = 0; i < MAX_INSTANCES; i++) {
+                    tempObject.position.set(0, 0, 0);
+                    tempObject.scale.setScalar(0);
+                    tempObject.updateMatrix();
+                    meshRef.current.setMatrixAt(i, tempObject.matrix);
+                }
+                meshRef.current.instanceMatrix.needsUpdate = true;
             }
-            meshRef.current.instanceMatrix.needsUpdate = true;
         }
+        
+        prevRecordsRef.current = allMatchingRecords;
     }, [allMatchingRecords]);
 
     useFrame(({ clock }) => {
