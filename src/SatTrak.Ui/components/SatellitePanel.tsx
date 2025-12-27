@@ -139,6 +139,8 @@ const SatellitePanel = () => {
     };
 
     // Grouping for a better Browse Experience
+    // Grouping for a better Browse Experience
+    // Grouping for a better Browse Experience
     const filterCategories = [
         {
             name: "CONSTELLATIONS",
@@ -146,11 +148,72 @@ const SatellitePanel = () => {
                 { label: "STARLINK", query: "STARLINK" },
                 { label: "ONEWEB", query: "ONEWEB" },
                 { label: "IRIDIUM", query: "IRIDIUM" },
+                { label: "GLOBALSTAR", query: "GLOBALSTAR" },
+                { label: "KUIPER", query: "KUIPER" },
+                { label: "QIANFAN", query: "QIANFAN" },
+                { label: "FLOCK", query: "FLOCK" },
+                { label: "LEMUR", query: "LEMUR" },
+                { label: "O3B", query: "O3B" },
+            ]
+        },
+        {
+            name: "GNSS & NAVIGATION",
+            filters: [
                 { label: "GPS", query: "GPS" },
                 { label: "GLONASS", query: "GLONASS" },
                 { label: "GALILEO", query: "GALILEO" },
                 { label: "BEIDOU", query: "BEIDOU" },
-                { label: "GLOBALSTAR", query: "GLOBALSTAR" },
+                { label: "QZS", query: "QZS" },
+                { label: "NAVY NAV", query: "NAVY" },
+            ]
+        },
+        {
+            name: "COMMUNICATIONS",
+            filters: [
+                { label: "INTELSAT", query: "INTELSAT" },
+                { label: "SES", query: "SES" },
+                { label: "EUTELSAT", query: "EUTELSAT" },
+                { label: "INMARSAT", query: "INMARSAT" },
+                { label: "TELESAT", query: "TELESAT" },
+                { label: "ORBCOMM", query: "ORBCOMM" },
+                { label: "HISPASAT", query: "HISPASAT" },
+                { label: "JCSAT", query: "JCSAT" },
+                { label: "TURKSAT", query: "TURKSAT" },
+                { label: "GALAXY", query: "GALAXY" },
+                { label: "TDRS", query: "TDRS" },
+                { label: "GORIZONT", query: "GORIZONT" },
+                { label: "RADUGA", query: "RADUGA" },
+            ]
+        },
+        {
+            name: "SCIENCE & WEATHER",
+            filters: [
+                { label: "NOAA", query: "NOAA" },
+                { label: "GOES", query: "GOES" },
+                { label: "METEOR", query: "METEOR" },
+                { label: "WEATHER", query: "WEATHER" },
+                { label: "EARTH MON", query: "EARTH" },
+                { label: "DISASTER", query: "DISASTER" },
+                { label: "S & R", query: "SAR" },
+                { label: "YAOGAN", query: "YAOGAN" }, 
+            ]
+        },
+        {
+            name: "MILITARY & GOV",
+            filters: [
+                { label: "USA MIL", query: "USA-" },
+                { label: "COSMOS", query: "COSMOS" },
+                { label: "NROL", query: "NROL" },
+                { label: "STATION", query: "STATION" },
+            ]
+        },
+        {
+            name: "MISC / OTHER",
+            filters: [
+                { label: "EXP/TEST", query: "EXPERIMENTAL" },
+                { label: "TV SAT", query: "TV" },
+                { label: "NEEDLE", query: "NEEDLE" },
+                { label: "TBA", query: "TBA" },
             ]
         },
         {
@@ -159,53 +222,9 @@ const SatellitePanel = () => {
                 { label: "LEO (Low)", query: "LEO" },
                 { label: "MEO (Mid)", query: "MEO" },
                 { label: "GEO (Fixed)", query: "GEO" },
-            ]
-        },
-        {
-            name: "COMMERCIAL GIANTS",
-            filters: [
-                { label: "INTELSAT", query: "INTELSAT" },
-                { label: "SES", query: "SES" },
-                { label: "EUTELSAT", query: "EUTELSAT" },
-                { label: "TELESAT", query: "TELESAT" },
-                { label: "INMARSAT", query: "INMARSAT" },
-            ]
-        },
-        {
-            name: "MILITARY & DEFENSE",
-            filters: [
-                { label: "USA- (MIL)", query: "USA-" },
-                { label: "YAOGAN", query: "YAOGAN" },
-                { label: "COSMOS", query: "COSMOS" },
-                { label: "NROL", query: "NROL" },
-            ]
-        },
-        {
-            name: "SPACE NATIONS",
-            filters: [
-                { label: "USA", query: "USA" },
-                { label: "RUSSIA", query: "RUSSIA" },
-                { label: "CHINA", query: "CHINA" },
-                { label: "INDIA", query: "INDIA" },
-                { label: "JAPAN", query: "JAPAN" },
-            ]
-        },
-        {
-            name: "METEOROLOGY & SCIENCE",
-            filters: [
-                { label: "NOAA", query: "NOAA" },
-                { label: "GOES", query: "GOES" },
-                { label: "METEOR", query: "METEOR" },
-                { label: "ISS", query: "ISS" },
-                { label: "TIANGONG", query: "TIANGONG" },
-            ]
-        },
-        {
-            name: "SPECIALIZED ORBITS",
-            filters: [
+                { label: "HEO (High)", query: "HEO" },
                 { label: "MOLNIYA", query: "MOLNIYA" },
                 { label: "TUNDRA", query: "TUNDRA" },
-                { label: "O3B", query: "O3B" },
             ]
         },
         {

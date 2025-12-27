@@ -22,7 +22,7 @@ interface LabelProps {
     initialPos: Vector3; 
 }
 
-const LabelUI = ({ name }: { name: string }) => (
+const SpeechBubble = ({ text, visible = true }: { text: string, visible?: boolean }) => (
     <div style={{
         color: '#22d3ee',
         fontSize: '10px', 
@@ -35,9 +35,22 @@ const LabelUI = ({ name }: { name: string }) => (
         transform: 'translateY(-26px)',
         boxShadow: '0 4px 8px rgba(0,0,0,0.6)',
         backdropFilter: 'blur(4px)',
-        fontWeight: 'bold'
+        fontWeight: 'bold',
+        display: visible ? 'block' : 'none'
     }}>
-        {name}
+        {text}
+        <div style={{
+            position: 'absolute',
+            left: '50%',
+            top: '101%',
+            width: '10px',
+            height: '10px',
+            background: '#050a14',
+            borderBottom: '1px solid rgba(34, 211, 238, 0.4)',
+            borderRight: '1px solid rgba(34, 211, 238, 0.4)',
+            transform: 'translateX(-50%) translateY(-43%) rotate(45deg)',
+            zIndex: 10
+        }} />
     </div>
 );
 
@@ -67,27 +80,8 @@ const SingleLabel = ({ satellite, satRec, initialPos }: LabelProps) => {
 
     return (
         <group ref={groupRef}>
-            <Html 
-                center 
-                distanceFactor={15} 
-                style={{ pointerEvents: 'none' }}
-                zIndexRange={[100, 0]} 
-            >
-                <div style={{
-                    color: '#22d3ee',
-                    fontSize: '10px', 
-                    fontFamily: 'monospace',
-                    background: 'rgba(5, 10, 20, 0.85)',
-                    border: '1px solid rgba(34, 211, 238, 0.3)',
-                    padding: '2px 6px',
-                    borderRadius: '4px',
-                    whiteSpace: 'nowrap',
-                    transform: 'translateY(-24px)',
-                    boxShadow: '0 2px 4px rgba(0,0,0,0.5)',
-                    backdropFilter: 'blur(2px)'
-                }}>
-                    {satellite.name || `SAT-${satellite.id}`}
-                </div>
+            <Html center distanceFactor={15} style={{ pointerEvents: 'none' }} zIndexRange={[100, 0]}>
+                <SpeechBubble text={satellite.name || `SAT-${satellite.id}`} />
             </Html>
         </group>
     );
@@ -96,7 +90,6 @@ const SingleLabel = ({ satellite, satRec, initialPos }: LabelProps) => {
 const HoverLabel = () => {
     const hoveredId = useSatelliteStore(s => s.hoveredId);
     const hoverPosition = useSatelliteStore(s => s.hoverPosition);
-    const tleMap = useSatelliteStore(s => s.tleMap);
     const showLabels = useSatelliteStore(s => s.showLabels);
     const { camera } = useThree();
     const groupRef = useRef<THREE.Group>(null);
@@ -112,13 +105,12 @@ const HoverLabel = () => {
         const currentHoverId = state.hoveredId;
         const currentHoverPos = state.hoverPosition;
         
-        // Anti-Ghosting: 3-Frame Blackout on ID Change
+        // Anti-Ghosting
         if (currentHoverId !== lastHoverIdRef.current.id) {
              lastHoverIdRef.current.id = currentHoverId;
-             lastHoverIdRef.current.hideFrames = 3; // Reset to 3 frames
+             lastHoverIdRef.current.hideFrames = 3;
         }
 
-        // 1. Resolve Position FIRST (Always update position, even if hidden)
         let activeRec = null;
         if (currentHoverId) {
              activeRec = state.satrecCache.get(currentHoverId);
@@ -127,7 +119,6 @@ const HoverLabel = () => {
         let x, y, z;
 
         if (activeRec) {
-            // High fidelity propagation
             const now = new Date();
             const pv = satLib.propagate(activeRec, now);
             if (pv.position && typeof pv.position !== 'boolean') {
@@ -137,7 +128,6 @@ const HoverLabel = () => {
                 z = -p.y * SCALE_FACTOR;
             }
         } else if (currentHoverPos) {
-            // Low latency fallback for first frames / loading phase
             [x, y, z] = currentHoverPos;
         }
 
@@ -151,7 +141,7 @@ const HoverLabel = () => {
             }
         }
 
-        // 2. Update Text & Visibility
+        // DOM Updates
         if (labelRef.current && textRef.current) {
             if (currentHoverId) {
                 const sat = state.tleMap.get(currentHoverId);
@@ -161,7 +151,6 @@ const HoverLabel = () => {
                     textRef.current.innerText = newText;
                 }
 
-                // Only show if we are NOT in blackout period
                 if (lastHoverIdRef.current.hideFrames > 0) {
                     labelRef.current.style.display = 'none';
                     lastHoverIdRef.current.hideFrames--;
@@ -179,11 +168,12 @@ const HoverLabel = () => {
     return (
         <group ref={groupRef}>
             <Html center distanceFactor={15} style={{ pointerEvents: 'none' }} zIndexRange={[1000, 500]}>
+                {/* Manually implementing the bubble structure for the REF access needed by useFrame logic */}
                 <div ref={labelRef} style={{
                     color: '#22d3ee',
                     fontSize: '10px', 
                     fontFamily: 'monospace',
-                    background: 'rgba(5, 10, 20, 0.95)', // Restore Glass effect
+                    background: 'rgba(5, 10, 20, 0.95)',
                     border: '1px solid rgba(34, 211, 238, 0.4)',
                     padding: '2px 8px',
                     borderRadius: '4px',
@@ -192,16 +182,16 @@ const HoverLabel = () => {
                     boxShadow: '0 4px 8px rgba(0,0,0,0.6)',
                     backdropFilter: 'blur(4px)',
                     fontWeight: 'bold',
-                    display: 'none' // Hidden by default, shown by loop
+                    display: 'none'
                 }}>
                     <div ref={textRef}>INITIALIZING...</div>
                     <div style={{
                         position: 'absolute',
                         left: '50%',
-                        top: '101%', // Critical Fix: Start exactly at bottom edge
-                        width: '10px',  // Slightly larger for better geometry
+                        top: '101%',
+                        width: '10px',
                         height: '10px',
-                        background: '#050a14', // Solid Hex (matches rgba(5,10,20,1)) to mask border
+                        background: '#050a14',
                         borderBottom: '1px solid rgba(34, 211, 238, 0.4)',
                         borderRight: '1px solid rgba(34, 211, 238, 0.4)',
                         transform: 'translateX(-50%) translateY(-43%) rotate(45deg)',

@@ -2,7 +2,7 @@
 
 import React, { useEffect, useRef, useMemo, useCallback } from "react";
 import { useFrame } from "@react-three/fiber";
-import { InstancedMesh, Object3D, Color, Points } from "three";
+import { InstancedMesh, Object3D, Color, Points, Vector2 } from "three";
 import * as satellite from "satellite.js";
 import { filterSatellites } from "../utils/SatelliteSearch";
 import { useSatelliteStore } from "../hooks/useSatelliteStore";
@@ -39,18 +39,20 @@ const SatelliteInstanced = () => {
         return filterSatellites(tles, searchQuery);
     }, [tles, searchQuery]);
 
-    // Shared Buffers for hit-proxy
     const hitPositions = useMemo(() => new Float32Array(MAX_INSTANCES * 3), []);
     const hitIds = useMemo(() => new Float32Array(MAX_INSTANCES), []);
 
     const currentVisibleCount = useRef(0);
 
     const lastRaycastTime = useRef(0);
+    const lastPointer = useRef(new Vector2(0, 0));
+    const velocitySkip = useRef(false);
 
     const customRaycast = useCallback((raycaster: any, intersects: any[]) => {
-        if (perfState.isRotating) return;
+        // Priority: forceCheck (Click) > isRotating (Drag) > Velocity (Fast Move)
+        if (!perfState.forceCheck && (perfState.isRotating || velocitySkip.current)) return;
 
-        // Throttle to 20Hz (50ms) unless forced (e.g. Click)
+        // Throttle 20Hz
         const now = performance.now();
         if (!perfState.forceCheck && (now - lastRaycastTime.current < 25)) {
             return;
@@ -60,7 +62,11 @@ const SatelliteInstanced = () => {
         Points.prototype.raycast.call(hitProxyRef.current as any, raycaster, intersects);
     }, []);
 
-    useFrame(({ clock, raycaster }) => {
+    useFrame(({ clock, raycaster, pointer }) => {
+        const distSq = pointer.distanceToSquared(lastPointer.current);
+        lastPointer.current.copy(pointer);
+        velocitySkip.current = distSq > 0.0001;
+
         const mesh = meshRef.current;
         const proxy = hitProxyRef.current;
         if (!mesh || !proxy || allMatchingRecords.length === 0) return;
@@ -198,7 +204,7 @@ const SatelliteInstanced = () => {
                     const dist = Math.sqrt(dx * dx + dy * dy);
                     mouseDownPos.current = null;
 
-                    if (dist > 5) {
+                    if (dist > 15) {
                         // Dragged
                         setFocusedId(null);
                         downSatIdRef.current = null;
@@ -214,8 +220,10 @@ const SatelliteInstanced = () => {
                              upSatId = idAttr.getX(e.index);
                         }
 
-                        // Strict Check: Must be same satellite as MouseDown
-                        if (upSatId > 0 && upSatId === downSatIdRef.current) {
+                        // Relaxed Check: If we clicked (not dragged) and landed on a sat, select it.
+                        // We removed the 'downSatIdRef' strict match because satellites/camera might move slightly,
+                        // causing the 'Down' and 'Up' rays to hit different things (or miss) even during a valid click.
+                        if (upSatId > 0) {
                             selectSingle(upSatId);
                         }
                     }

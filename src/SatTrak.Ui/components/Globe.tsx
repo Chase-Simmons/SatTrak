@@ -180,48 +180,77 @@ const Globe = () => {
     const controlsRef = useRef<any>(null); // Ref for OrbitControls access
     const rotationTimeout = useRef<NodeJS.Timeout | null>(null);
     const startRotationTimeout = useRef<NodeJS.Timeout | null>(null);
+    const dragLockTimeout = useRef<NodeJS.Timeout | null>(null);
+    const containerRef = useRef<HTMLDivElement>(null);
+
     React.useEffect(() => {
         const setDown = () => { 
-            // INSTANT RESET: Treat every click as an intent to interact.
+            // Reset interaction state
             if (rotationTimeout.current) clearTimeout(rotationTimeout.current);
+            if (dragLockTimeout.current) {
+                clearTimeout(dragLockTimeout.current);
+                dragLockTimeout.current = null;
+            }
             if (startRotationTimeout.current) {
                 clearTimeout(startRotationTimeout.current);
                 startRotationTimeout.current = null;
             }
-            // FORCE CHECK: Bypass 20Hz throttle for instant click start
+            // Force Raycast sync
             perfState.forceCheck = true;
             perfState.isRotating = false;
             useSatelliteStore.getState().setIsCameraRotating(false);
+            
+            // Lock raycasting during drag (after initial hit-test frame)
+            dragLockTimeout.current = setTimeout(() => {
+                perfState.forceCheck = false;
+                perfState.isRotating = true; 
+            }, 50);
         };
         const setUp = () => { 
-            // UNLOCK ON UP: Ensure Click works even if held > 150ms
+            // Unlock
+            if (dragLockTimeout.current) {
+                clearTimeout(dragLockTimeout.current);
+                dragLockTimeout.current = null;
+            }
             if (startRotationTimeout.current) {
                 clearTimeout(startRotationTimeout.current);
                 startRotationTimeout.current = null;
             }
-            // Force Raycast ON so 3JS can find the target for the Click event
-            perfState.forceCheck = true; // High Precision for the release event
+            // Force Raycast for release event
+            perfState.forceCheck = true; 
             perfState.isRotating = false;
             useSatelliteStore.getState().setIsCameraRotating(false); 
-            
-            // Relax back to Throttle Mode after brief window
-            setTimeout(() => {
-                perfState.forceCheck = false;
-            }, 100);
         };
-        window.addEventListener('mousedown', setDown);
-        window.addEventListener('mouseup', setUp);
+
+        const setWheel = (e: WheelEvent) => {
+             // Let ZoomInertia handle it, but prevent default browser zoom?
+             // Actually, ZoomInertia adds its own listeners.
+             // We just need to stop strict propagation if needed, but R3F canvas handles this usually.
+             // For now, let's just leave it empty or minimal if not strictly needed for logic.
+        };
+        
+        const container = containerRef.current;
+        if (container) {
+            // Use Capture Phase on Container
+            container.addEventListener('pointerdown', setDown, { capture: true });
+            container.addEventListener('pointerup', setUp, { capture: true });
+            // Global catch for pointerup to handle drags that end outside window
+            window.addEventListener('pointerup', setUp, { capture: true });
+        }
 
         fetchTles();
         return () => {
             if (rotationTimeout.current) clearTimeout(rotationTimeout.current);
-            window.removeEventListener('mousedown', setDown);
-            window.removeEventListener('mouseup', setUp);
+            if (container) {
+                container.removeEventListener('pointerdown', setDown, { capture: true } as any);
+                container.removeEventListener('pointerup', setUp, { capture: true } as any);
+            }
+             window.removeEventListener('pointerup', setUp, { capture: true } as any);
         };
     }, []);
 
     return (
-        <div className="relative w-full h-full bg-black">
+        <div ref={containerRef} className="relative w-full h-full bg-black">
              {/* ... Source HUD ... */}
              <div 
                 className="absolute top-4 left-4 z-10 bg-black/50 p-2 rounded text-white font-mono pointer-events-none border border-white/20 text-left"
@@ -323,7 +352,7 @@ const Globe = () => {
                     minDistance={6.5} 
                     maxDistance={110} 
                     enableDamping={true}
-                    dampingFactor={0.05} // SMOOTH
+                    dampingFactor={0.06} // Slightly longer glide (was 0.05)
                     mouseButtons={{
                         LEFT: THREE.MOUSE.ROTATE,
                         MIDDLE: THREE.MOUSE.PAN,

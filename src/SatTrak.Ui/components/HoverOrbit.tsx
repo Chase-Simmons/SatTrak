@@ -10,7 +10,7 @@ import { useShallow } from 'zustand/react/shallow';
 const satLib = satellite as any;
 
 const SCALE_FACTOR = 1 / 1000;
-const SEGMENTS = 128; 
+const SEGMENTS = 256; 
 
 const HoverOrbit = () => {
     const { hoveredId, satrecCache } = useSatelliteStore(useShallow(state => ({
