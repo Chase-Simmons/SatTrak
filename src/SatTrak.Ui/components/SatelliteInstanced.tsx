@@ -10,7 +10,6 @@ import { getOrbitClass, getOrbitColor } from "../utils/OrbitalMath";
 import { useShallow } from 'zustand/react/shallow';
 import { perfState } from "../utils/PerformanceState";
 
-// @ts-ignore
 const satLib = satellite as any;
 
 const EARTH_RADIUS_KM = 6371;
@@ -49,7 +48,6 @@ const SatelliteInstanced = () => {
     const velocitySkip = useRef(false);
 
     const customRaycast = useCallback((raycaster: any, intersects: any[]) => {
-        // Priority: forceCheck (Click) > isRotating (Drag) > Velocity (Fast Move)
         if (!perfState.forceCheck && (perfState.isRotating || velocitySkip.current)) return;
 
         // Throttle 20Hz
@@ -84,7 +82,6 @@ const SatelliteInstanced = () => {
             }
         }
 
-        // Accelerated ramp-up: 1000 per frame
         if (currentVisibleCount.current < allMatchingRecords.length) {
             currentVisibleCount.current = Math.min(currentVisibleCount.current + 1000, allMatchingRecords.length);
         }
@@ -122,7 +119,7 @@ const SatelliteInstanced = () => {
                         const rKm = Math.sqrt(p.x*p.x + p.y*p.y + p.z*p.z);
                         const altKm = rKm - EARTH_RADIUS_KM;
                         const orbClass = getOrbitClass(altKm);
-                        color.set(getOrbitColor(orbClass));
+                        color.setHex(getOrbitColor(orbClass));
                         scale = orbClass === 'LEO' ? 1.0 : orbClass === 'MEO' ? 1.5 : 2.0;
                     }
                     
@@ -169,8 +166,6 @@ const SatelliteInstanced = () => {
                         const geometry = (e.object as Points).geometry;
                         const idAttr = geometry.getAttribute('satId');
                         
-                        // Strict Attribute Read: If GPU isn't ready, we don't interact.
-                        // This prevents stale text from index guessing.
                         let satId = -1;
                         if (idAttr) {
                              satId = idAttr.getX(e.index);
@@ -221,8 +216,6 @@ const SatelliteInstanced = () => {
                         }
 
                         // Relaxed Check: If we clicked (not dragged) and landed on a sat, select it.
-                        // We removed the 'downSatIdRef' strict match because satellites/camera might move slightly,
-                        // causing the 'Down' and 'Up' rays to hit different things (or miss) even during a valid click.
                         if (upSatId > 0) {
                             selectSingle(upSatId);
                         }

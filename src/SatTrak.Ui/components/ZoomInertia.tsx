@@ -28,16 +28,12 @@ const ZoomInertia = ({ controlsRef }: Props) => {
             e.preventDefault(); 
             e.stopPropagation();
 
-            // Add momentum (Zoom is "Dolly")
-            // Standard: DeltaY > 0 is Scroll Down (Zoom Out usually)
             velocity.current += e.deltaY * MOMENTUM_SCALE;
 
-            // Perf Lock Logic (Immediate)
             if (!perfState.isRotating) {
                 perfState.isRotating = true;
                 setIsCameraRotating(true);
             }
-            // Clear any pending unlock
             if (momentumTimeout.current) clearTimeout(momentumTimeout.current);
         };
 
@@ -52,37 +48,19 @@ const ZoomInertia = ({ controlsRef }: Props) => {
         const v = velocity.current;
 
         if (Math.abs(v) > STOP_THRESHOLD) {
-            // Apply Dolly
-            // > 0 means Pulling Back (Dolly Out)
-            // < 0 means Pushing In (Dolly In)
-            // Function dollyIn(scale): scale < 1 zooms in?
-            // ThreeJS OrbitControls:
-            // dollyOut(scale): object.position /= scale; (Moves out if scale < 1? No.)
-            // Actually: dollyIn(doyyScale); dollyOut(dollyScale);
-            // Let's use generic approach:
-            
-            // Standard OrbitControls Zoom logic:
-            // scale = Math.pow( 0.95, zoomSpeed );
-            // if ( deltaY < 0 ) dollyIn( getZoomScale() );
-            // if ( deltaY > 0 ) dollyOut( getZoomScale() );
-            
-            // We convert linear velocity to multiplicative scale
             const factor = 1 + Math.abs(v);
             
             if (v > 0) {
-                 controlsRef.current.dollyIn(factor); // Inverted: Scroll Down pushes IN
+                 controlsRef.current.dollyIn(factor); 
             } else {
-                 controlsRef.current.dollyOut(factor); // Inverted: Scroll Up pulls OUT
+                 controlsRef.current.dollyOut(factor);
             }
             controlsRef.current.update();
 
-            // Apply Friction
             velocity.current *= FRICTION;
 
-            // Keep Perf Locked while moving
             if (momentumTimeout.current) clearTimeout(momentumTimeout.current);
             momentumTimeout.current = setTimeout(() => {
-                 // Only unlock if stopped
                  if (Math.abs(velocity.current) < STOP_THRESHOLD) {
                      perfState.isRotating = false;
                      setIsCameraRotating(false);

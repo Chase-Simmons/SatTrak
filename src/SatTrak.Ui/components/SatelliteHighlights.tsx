@@ -6,7 +6,6 @@ import * as satellite from "satellite.js";
 import { useSatelliteStore } from "../hooks/useSatelliteStore";
 import * as THREE from "three";
 
-// @ts-ignore
 const satLib = satellite as any;
 const SCALE_FACTOR = 1 / 1000;
 const MAX_HIGHLIGHTS = 10000;

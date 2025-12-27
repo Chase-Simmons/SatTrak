@@ -5,7 +5,7 @@ import { Billboard } from "@react-three/drei";
 import * as satellite from "satellite.js";
 import * as THREE from "three";
 
-// @ts-ignore
+import { useSatelliteStore } from "../hooks/useSatelliteStore";
 const satLib = satellite as any;
 
 const SCALE_FACTOR = 1 / 1000;
@@ -14,7 +14,6 @@ const MOON_CORE_RADIUS = 1.6; // Slightly smaller for the solid core
 const SUN_DISTANCE_VISUAL = 8000;
 const SUN_RADIUS_VISUAL = 35;
 
-// Shader for a perfect mathematical radial glow (No textures = No rectangles)
 const GlowShader = {
     uniforms: {
         uColor: { value: new THREE.Color("#ffcc33") },
@@ -43,8 +42,6 @@ const GlowShader = {
     `
 };
 
-// Simplified Lunar Position Calculation (Low precision)
-// Based on Jean Meeus' truncated periodic terms
 const getMoonPosition = (date: Date) => {
     const T = (date.getTime() / 1000 / 86400 + 2440587.5 - 2451545.0) / 36525;
     
@@ -79,7 +76,6 @@ const getMoonPosition = (date: Date) => {
     return new THREE.Vector3(x, z, -y);
 };
 
-import { useSatelliteStore } from "../hooks/useSatelliteStore";
 
 const CelestialBodies = () => {
     const { showCelestialBodies } = useSatelliteStore();

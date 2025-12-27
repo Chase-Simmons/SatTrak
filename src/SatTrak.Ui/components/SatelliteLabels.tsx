@@ -11,7 +11,6 @@ import * as THREE from "three";
 
 const EARTH_RADIUS_OCLUDE = 6.371;
 
-// @ts-ignore
 const satLib = satellite as any;
 
 const SCALE_FACTOR = 1 / 1000;
@@ -168,7 +167,6 @@ const HoverLabel = () => {
     return (
         <group ref={groupRef}>
             <Html center distanceFactor={15} style={{ pointerEvents: 'none' }} zIndexRange={[1000, 500]}>
-                {/* Manually implementing the bubble structure for the REF access needed by useFrame logic */}
                 <div ref={labelRef} style={{
                     color: '#22d3ee',
                     fontSize: '10px', 

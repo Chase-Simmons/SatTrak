@@ -4,6 +4,7 @@ import React from "react";
 import { Html } from "@react-three/drei";
 import { DoubleSide } from "three";
 import * as THREE from "three";
+import { useSatelliteStore } from "../hooks/useSatelliteStore";
 
 const EARTH_RADIUS = 6.371;
 
@@ -75,7 +76,6 @@ const Ring = ({ altitudeKm, label, color = "#444", earthRef, orientation = 'xz',
     );
 };
 
-import { useSatelliteStore } from "../hooks/useSatelliteStore";
 
 const DistanceGrid = ({ earthRef }: { earthRef?: React.RefObject<THREE.Mesh | null> }) => {
     const { showKmMarkers, showOrbitRanges } = useSatelliteStore();

@@ -12,11 +12,11 @@ export function getOrbitClass(altitudeKm: number): OrbitClass {
     return OrbitClass.HEO;
 }
 
-export function getOrbitColor(orbitClass: OrbitClass): string {
+export function getOrbitColor(orbitClass: OrbitClass): number {
     switch (orbitClass) {
-        case OrbitClass.LEO: return '#00B200';
-        case OrbitClass.MEO: return '#00B2B2';
-        case OrbitClass.GEO: return '#FF0000';
-        default: return '#94a3b8';
+        case OrbitClass.LEO: return 0x00B200; // Green
+        case OrbitClass.MEO: return 0x00B2B2; // Cyan
+        case OrbitClass.GEO: return 0xFF0000; // Red
+        default: return 0x94a3b8; // Grey
     }
 }

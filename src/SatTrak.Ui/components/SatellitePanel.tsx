@@ -38,7 +38,7 @@ const SatelliteItem = ({ sat, isSelected, isFocused, onToggle, onFocus }: {
     }, [sat]);
 
     const displayName = sat.name && sat.name !== "Unknown" ? sat.name : `SAT-${sat.id}`;
-    const statusColor = stats ? getOrbitColor(stats.class) : '#475569';
+    const statusColor = stats ? '#' + getOrbitColor(stats.class).toString(16).padStart(6, '0') : '#475569';
 
     return (
         <div 

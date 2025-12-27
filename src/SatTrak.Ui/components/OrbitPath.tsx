@@ -6,8 +6,7 @@ import { Vector3, BufferAttribute, BufferGeometry } from "three";
 import * as satellite from "satellite.js";
 import { useSatelliteStore, SatelliteTle } from "../hooks/useSatelliteStore";
 
-// @ts-ignore
-const satLib = satellite;
+const satLib = satellite as any;
 
 const SCALE_FACTOR = 1 / 1000;
 const SEGMENTS = 256; 
@@ -42,12 +41,11 @@ const OrbitPath = () => {
     const sortingIndex = useRef(0);
     const candidatesBuffer = useRef<{sat: SatelliteTle, distSq: number, rec: any}[]>([]);
     
-    // Manage Orbit Generation
+    
     useEffect(() => {
         const prev = prevSelectedIdsRef.current;
         const curr = selectedIds;
         
-        // Literal selection changes
         const hasSelectionChanged = prev.length !== curr.length || !prev.every(id => curr.includes(id));
         
         if (hasSelectionChanged) {
@@ -156,7 +154,6 @@ const OrbitPath = () => {
                         const distSq = x * x + y * y + z * z;
 
                         if (!firstPass) {
-                            // Occlusion check
                             if (distSq > EARTH_INNER_RADIUS_SQ && prevDistSq > EARTH_INNER_RADIUS_SQ) {
                                 positions[offset++] = prevX;
                                 positions[offset++] = prevY;
@@ -219,6 +216,5 @@ const OrbitPath = () => {
     );
 };
 
-import * as THREE from "three";
 
 export default OrbitPath;

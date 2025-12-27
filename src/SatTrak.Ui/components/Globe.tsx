@@ -38,9 +38,6 @@ const toCartesian = (lat: number, lon: number, alt: number) => {
 const FpsTracker = ({ fpsRef }: { fpsRef: React.RefObject<HTMLDivElement | null> }) => {
   useFrame((state: any, delta: number) => {
     if (!fpsRef.current) return;
-    // Update every 500ms approx (or every frame if preferred, but dampening is nicer)
-    // For simplicity, let's update every frame but use a smoothing simple text
-    // actually, let's do a simple counter
     const fps = 1 / delta;
     fpsRef.current.innerText = `FPS: ${fps.toFixed(0)}`;
   });
@@ -222,12 +219,6 @@ const Globe = () => {
             useSatelliteStore.getState().setIsCameraRotating(false); 
         };
 
-        const setWheel = (e: WheelEvent) => {
-             // Let ZoomInertia handle it, but prevent default browser zoom?
-             // Actually, ZoomInertia adds its own listeners.
-             // We just need to stop strict propagation if needed, but R3F canvas handles this usually.
-             // For now, let's just leave it empty or minimal if not strictly needed for logic.
-        };
         
         const container = containerRef.current;
         if (container) {
@@ -365,9 +356,6 @@ const Globe = () => {
                         // Clear pending stop
                         if (rotationTimeout.current) clearTimeout(rotationTimeout.current);
 
-                        // Unified Jitter Logic for all OrbitControls changes (Drag / Pan)
-                        // If NOT rotating and NO pending start, schedule start (150ms)
-                        // This protects clicks from triggering High FPS (Raycast Off) mode.
                         if (!perfState.isRotating && !startRotationTimeout.current) {
                             startRotationTimeout.current = setTimeout(() => {
                                 perfState.isRotating = true;
@@ -395,7 +383,6 @@ const Globe = () => {
                          }
                          if (rotationTimeout.current) clearTimeout(rotationTimeout.current);
                          
-                         // CRITICAL FIX: Manually unlock Raycaster
                          perfState.isRotating = false;
                          setIsCameraRotating(false);
                     }}
