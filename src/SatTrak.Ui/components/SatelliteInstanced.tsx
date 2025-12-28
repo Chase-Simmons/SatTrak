@@ -48,7 +48,7 @@ const SatelliteInstanced = ({ meshRef }: SatelliteInstancedProps) => {
     const hitProxyRef = useRef<Points>(null);
     const tempObject = useMemo(() => new Object3D(), []);
     const color = useMemo(() => new Color(), []);
-    const selectedSatelliteColor = new Color('#afff4e');
+    const selectedSatelliteColor = new Color('#a3e635');
     
     const selectedSet = useMemo(() => new Set(selectedIds), [selectedIds]);
 

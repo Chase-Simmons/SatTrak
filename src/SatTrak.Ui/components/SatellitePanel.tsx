@@ -135,9 +135,7 @@ const SatellitePanel = () => {
     
     // UX: Track which browse categories are expanded
     const [expandedCategories, setExpandedCategories] = React.useState<Set<string>>(new Set([
-        "CONSTELLATIONS", 
-        "ORBITAL ZONES",
-        "OBJECT TYPES"
+        "ORBITAL ZONES"
     ]));
 
     const toggleCategory = (name: string) => {
@@ -151,6 +149,35 @@ const SatellitePanel = () => {
     // Grouping for a better Browse Experience
     // Grouping for a better Browse Experience
     const filterCategories = [
+        {
+            name: "ORBITAL ZONES",
+            filters: [
+                { label: "LEO (Low)", query: "LEO" },
+                { label: "MEO (Mid)", query: "MEO" },
+                { label: "GEO (Fixed)", query: "GEO" },
+                { label: "HEO (High)", query: "HEO" },
+                { label: "MOLNIYA", query: "MOLNIYA" },
+                { label: "TUNDRA", query: "TUNDRA" },
+            ]
+        },
+        {
+            name: "COMMUNICATIONS",
+            filters: [
+                { label: "INTELSAT", query: "INTELSAT" },
+                { label: "SES", query: "SES" },
+                { label: "EUTELSAT", query: "EUTELSAT" },
+                { label: "INMARSAT", query: "INMARSAT" },
+                { label: "TELESAT", query: "TELESAT" },
+                { label: "ORBCOMM", query: "ORBCOMM" },
+                { label: "HISPASAT", query: "HISPASAT" },
+                { label: "JCSAT", query: "JCSAT" },
+                { label: "TURKSAT", query: "TURKSAT" },
+                { label: "GALAXY", query: "GALAXY" },
+                { label: "TDRS", query: "TDRS" },
+                { label: "GORIZONT", query: "GORIZONT" },
+                { label: "RADUGA", query: "RADUGA" },
+            ]
+        },
         {
             name: "CONSTELLATIONS",
             filters: [
@@ -177,37 +204,6 @@ const SatellitePanel = () => {
             ]
         },
         {
-            name: "COMMUNICATIONS",
-            filters: [
-                { label: "INTELSAT", query: "INTELSAT" },
-                { label: "SES", query: "SES" },
-                { label: "EUTELSAT", query: "EUTELSAT" },
-                { label: "INMARSAT", query: "INMARSAT" },
-                { label: "TELESAT", query: "TELESAT" },
-                { label: "ORBCOMM", query: "ORBCOMM" },
-                { label: "HISPASAT", query: "HISPASAT" },
-                { label: "JCSAT", query: "JCSAT" },
-                { label: "TURKSAT", query: "TURKSAT" },
-                { label: "GALAXY", query: "GALAXY" },
-                { label: "TDRS", query: "TDRS" },
-                { label: "GORIZONT", query: "GORIZONT" },
-                { label: "RADUGA", query: "RADUGA" },
-            ]
-        },
-        {
-            name: "SCIENCE & WEATHER",
-            filters: [
-                { label: "NOAA", query: "NOAA" },
-                { label: "GOES", query: "GOES" },
-                { label: "METEOR", query: "METEOR" },
-                { label: "WEATHER", query: "WEATHER" },
-                { label: "EARTH MON", query: "EARTH" },
-                { label: "DISASTER", query: "DISASTER" },
-                { label: "S & R", query: "SAR" },
-                { label: "YAOGAN", query: "YAOGAN" }, 
-            ]
-        },
-        {
             name: "MILITARY & GOV",
             filters: [
                 { label: "USA MIL", query: "USA-" },
@@ -226,21 +222,23 @@ const SatellitePanel = () => {
             ]
         },
         {
-            name: "ORBITAL ZONES",
-            filters: [
-                { label: "LEO (Low)", query: "LEO" },
-                { label: "MEO (Mid)", query: "MEO" },
-                { label: "GEO (Fixed)", query: "GEO" },
-                { label: "HEO (High)", query: "HEO" },
-                { label: "MOLNIYA", query: "MOLNIYA" },
-                { label: "TUNDRA", query: "TUNDRA" },
-            ]
-        },
-        {
             name: "OBJECT TYPES",
             filters: [
                 { label: "DEBRIS", query: "DEBRIS" },
                 { label: "ROCKETS", query: "ROCKET" },
+            ]
+        },
+        {
+            name: "SCIENCE & WEATHER",
+            filters: [
+                { label: "NOAA", query: "NOAA" },
+                { label: "GOES", query: "GOES" },
+                { label: "METEOR", query: "METEOR" },
+                { label: "WEATHER", query: "WEATHER" },
+                { label: "EARTH MON", query: "EARTH" },
+                { label: "DISASTER", query: "DISASTER" },
+                { label: "S & R", query: "SAR" },
+                { label: "YAOGAN", query: "YAOGAN" }, 
             ]
         }
     ];

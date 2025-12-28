@@ -210,7 +210,7 @@ const OrbitPath = () => {
                         args={[bufferAttributes.positions, 3]}
                     />
                 </bufferGeometry>
-                <lineBasicMaterial color="#afff4e" opacity={0.8} transparent linewidth={3} />
+                <lineBasicMaterial color="#a3e635" opacity={0.8} transparent linewidth={3} />
 
 
 

@@ -4,6 +4,7 @@ import React, { useMemo, useRef, useState, Suspense } from "react";
 import { AltitudeLogic, AltitudeOverlay } from "./AltitudeIndicator";
 import SatelliteLabels from "./SatelliteLabels";
 import SatelliteHighlights from "./SatelliteHighlights";
+import SatelliteInfoPanel from "./SatelliteInfoPanel";
 import { Canvas, useThree, useFrame } from "@react-three/fiber";
 import { OrbitControls, Stars, useTexture } from "@react-three/drei";
 import { EffectComposer, Bloom, SelectiveBloom, Selection, Select } from "@react-three/postprocessing";
@@ -130,8 +131,8 @@ const MainScene = () => {
     return (
         <div ref={containerRef} className="relative w-full h-full bg-black">
              <div 
-                className="absolute top-4 left-4 z-10 bg-black/50 p-2 rounded text-white font-mono pointer-events-none border border-white/20 text-left"
-                style={{ position: 'absolute', top: '1rem', left: '1rem', zIndex: 10, backgroundColor: 'rgba(0,0,0,0.5)', color: 'white' }}
+                className="absolute top-4 right-4 z-10 bg-black/50 p-2 rounded text-white font-mono pointer-events-none border border-white/20 text-right"
+                style={{ position: 'absolute', top: '1rem', right: '1rem', zIndex: 10, backgroundColor: 'rgba(0,0,0,0.5)', color: 'white' }}
              >
                 <div ref={fpsRef} className="font-bold text-green-400">FPS: --</div>
                 <div>Source: Client-Side Propagation</div>
@@ -140,6 +141,7 @@ const MainScene = () => {
             </div>
 
             <SatellitePanel />
+            <SatelliteInfoPanel />
             <AltitudeOverlay barRef={altBarRef} textRef={altTextRef} />
 
             <Canvas 
@@ -166,39 +168,38 @@ const MainScene = () => {
                 </Suspense>
                 
                 <EarthGroup>
-                    {viewMode === 'wireframe' ? (
-                        <group rotation={[0, Math.PI, 0]}>
-                           {/* ... (Wireframe Mesh) ... */}
-                            <mesh 
-                                ref={setEarthMesh}
-                                onPointerMove={(e) => e.stopPropagation()}
-                                onPointerOver={() => useSatelliteStore.getState().setHoveredId(null)}
-                                onPointerDown={(e) => {
-                                    e.stopPropagation();
-                                    mouseDownPos.current = { x: e.clientX, y: e.clientY };
-                                }}
-                                onPointerUp={(e) => {
-                                    e.stopPropagation();
-                                    if (!mouseDownPos.current) return;
-                                    const dx = e.clientX - mouseDownPos.current.x;
-                                    const dy = e.clientY - mouseDownPos.current.y;
-                                    const dist = Math.sqrt(dx * dx + dy * dy);
-                                    if (dist > 5) {
-                                        setFocusedId(null);
-                                    }
-                                    mouseDownPos.current = null;
-                                }}
-                            >
-                                <sphereGeometry args={[EARTH_RADIUS, 32, 32]} />
-                                <meshBasicMaterial color="#000" />
-                            </mesh>
+                    <group visible={viewMode === 'wireframe'} rotation={[0, Math.PI, 0]}>
+                        <mesh 
+                            ref={setEarthMesh}
+                            onPointerMove={(e) => e.stopPropagation()}
+                            onPointerOver={() => useSatelliteStore.getState().setHoveredId(null)}
+                            onPointerDown={(e) => {
+                                e.stopPropagation();
+                                mouseDownPos.current = { x: e.clientX, y: e.clientY };
+                            }}
+                            onPointerUp={(e) => {
+                                e.stopPropagation();
+                                if (!mouseDownPos.current) return;
+                                const dx = e.clientX - mouseDownPos.current.x;
+                                const dy = e.clientY - mouseDownPos.current.y;
+                                const dist = Math.sqrt(dx * dx + dy * dy);
+                                if (dist > 5) {
+                                    setFocusedId(null);
+                                }
+                                mouseDownPos.current = null;
+                            }}
+                        >
+                            <sphereGeometry args={[EARTH_RADIUS, 32, 32]} />
+                            <meshBasicMaterial color="#000" />
+                        </mesh>
 
-                            {/* Lat/Lon Grid (Graticule) */}
-                            {showGraticule && <Graticule />}
-                            <WorldLines />
-                        </group>
-                    ) : (
-                        <Suspense fallback={null}>
+                        {/* Lat/Lon Grid (Graticule) */}
+                        {showGraticule && <Graticule />}
+                        <WorldLines />
+                    </group>
+
+                    <Suspense fallback={null}>
+                         <group visible={viewMode === 'realistic'}>
                              <RealisticEarth meshRef={setEarthBloomMesh} />
                              {/* Realistic Graticule overlay */}
                              {showGraticule && (
@@ -208,7 +209,7 @@ const MainScene = () => {
                              )}
                              {/* Keep interaction mesh invisible for picking */}
                               <mesh 
-                                ref={setEarthMesh}
+                                ref={viewMode === 'realistic' ? setEarthMesh : null}
                                 visible={false} // Invisible proxy for interaction / sizing
                                 onPointerMove={(e) => e.stopPropagation()}
                                 onPointerOver={() => useSatelliteStore.getState().setHoveredId(null)}
@@ -231,8 +232,8 @@ const MainScene = () => {
                                 <sphereGeometry args={[EARTH_RADIUS, 32, 32]} />
                                 <meshBasicMaterial color="#000" />
                             </mesh>
-                        </Suspense>
-                    )}
+                        </group>
+                    </Suspense>
                 </EarthGroup>
                 
                 {/* Stars Always Visible & Behind Everything */}
@@ -260,7 +261,7 @@ const MainScene = () => {
                             intensity={0.2}
                             radius={0.4} 
                             luminanceThreshold={0.1} 
-                            luminanceSmoothing={0.4}
+                            luminanceSmoothing={0.5}
                             mipmapBlur
                         />
                      )}

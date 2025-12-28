@@ -13,6 +13,14 @@ extend({ EarthMaterial });
 const satLib = satellite as any;
 const EARTH_RADIUS = 6.371;
 
+// Preload textures to avoid lag spike on switch
+useTexture.preload([
+    '/textures/8k_earth_daymap.png',
+    '/textures/8k_earth_nightmap.png',
+    '/textures/8k_earth_heightmap.png',
+    '/textures/8k_earth_clouds.png'
+]);
+
 const RealisticEarth = ({ meshRef }: { meshRef?: React.Ref<THREE.Mesh> }) => {
     const [colorMap, nightMap, heightMap] = useTexture([
         '/textures/8k_earth_daymap.png',

@@ -67,13 +67,10 @@ const HoverOrbit = () => {
         <line ref={lineRef as any}>
             <bufferGeometry ref={geometryRef} />
             <lineBasicMaterial 
-                color="#afff4e" 
+                color="#e4e4e7" 
                 transparent 
                 opacity={0.7}
-
-
-
-                linewidth={3} 
+                linewidth={2.5} 
                 depthWrite={false}
             />
 

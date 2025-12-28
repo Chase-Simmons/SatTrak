@@ -14,10 +14,10 @@ export function getOrbitClass(altitudeKm: number): OrbitClass {
 
 export function getOrbitColor(orbitClass: OrbitClass): number {
     switch (orbitClass) {
-        case OrbitClass.LEO: return 0x22d3ee; // Cyan (Lum 0.69)
-        case OrbitClass.MEO: return 0xfbbf24; // Amber (Lum 0.75)
-        case OrbitClass.GEO: return 0xfda4af; // Light Rose (Lum 0.72)
-        default: return 0xd8b4fe; // Soft Lavender (Lum 0.72)
+        case OrbitClass.LEO: return 0x06b6d4; // Cyan-500 (Lower Lum)
+        case OrbitClass.MEO: return 0xfbbf24; // Amber
+        case OrbitClass.GEO: return 0xfda4af; // Rose
+        default: return 0xd8b4fe; // Lavender
     }
 }
 
