@@ -23,26 +23,45 @@ export const AltitudeLogic = ({
         const maxAlt = 100000;
         const percent = Math.min(Math.max(altKm / maxAlt, 0), 1) * 100;
 
-        // Color Interpolation
-        // Green(0) -> Cyan(15k) -> Red(35k) -> Purple(60k+)
-        let r=0, g=255, b=0;
+        // Color Interpolation (Balanced Neon Horizon)
+        // LEO: 0x22d3ee (34, 211, 238) - Lum 0.69
+        // MEO: 0xfbbf24 (251, 191, 36) - Lum 0.75
+        // GEO: 0xfda4af (253, 164, 175) - Lum 0.72
+        // HEO: 0xd8b4fe (216, 180, 254) - Lum 0.72
+
+        let r=34, g=211, b=238;
         if (altKm < 2000) {
-            r=0; g=255; b=0;
-        } else if (altKm < 15000) {
-            // 2k(Green) -> 15k(Cyan: 0,255,255)
-            const t = (altKm - 2000) / (15000 - 2000);
-            r=0; g=255; b=Math.round(t * 255);
-        } else if (altKm < 35000) {
-            // 15k(Cyan) -> 35k(Red: 255,0,0)
-            const t = (altKm - 15000) / (35000 - 15000);
-            r=Math.round(t * 255); g=Math.round((1-t)*255); b=Math.round((1-t)*255);
+            // LEO base
+            r=34; g=211; b=238;
+        } else if (altKm < 20000) {
+            // LEO (Cyan) -> MEO (Amber)
+            const t = (altKm - 2000) / (20000 - 2000);
+            r = Math.round(34 + t * (251 - 34));
+            g = Math.round(211 + t * (191 - 211));
+            b = Math.round(238 + t * (36 - 238));
+        } else if (altKm < 35786) {
+            // MEO (Amber) -> GEO (Light Rose)
+            const t = (altKm - 20000) / (35786 - 20000);
+            r = Math.round(251 + t * (253 - 251));
+            g = Math.round(191 + t * (164 - 191));
+            b = Math.round(36 + t * (175 - 36));
         } else if (altKm < 60000) {
-            // 35k(Red) -> 60k(Purple: 191,0,255)
-            const t = (altKm - 35000) / (60000 - 35000);
-            r=Math.round(255 - t*(255-191)); g=0; b=Math.round(t*255);
+            // GEO (Light Rose) -> HEO (Lavender)
+            const t = (altKm - 35786) / (60000 - 35786);
+            r = Math.round(253 + t * (216 - 253));
+            g = Math.round(164 + t * (180 - 164));
+            b = Math.round(175 + t * (254 - 175));
         } else {
-             r=191; g=0; b=255;
+            // HEO base
+            r=216; g=180; b=254;
         }
+
+
+
+
+
+
+
         
         const color = `rgb(${r},${g},${b})`;
         

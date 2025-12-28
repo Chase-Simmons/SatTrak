@@ -23,11 +23,11 @@ interface LabelProps {
 
 const SpeechBubble = ({ text, visible = true }: { text: string, visible?: boolean }) => (
     <div style={{
-        color: '#22d3ee',
+        color: '#afff4e',
         fontSize: '10px', 
         fontFamily: 'monospace',
-        background: 'rgba(5, 10, 20, 0.95)',
-        border: '1px solid rgba(34, 211, 238, 0.4)',
+        background: 'rgba(5, 10, 20, 1)',
+        border: '1px solid rgba(175, 255, 78, 0.6)',
         padding: '2px 8px',
         borderRadius: '4px',
         whiteSpace: 'nowrap',
@@ -44,9 +44,9 @@ const SpeechBubble = ({ text, visible = true }: { text: string, visible?: boolea
             top: '101%',
             width: '10px',
             height: '10px',
-            background: '#050a14',
-            borderBottom: '1px solid rgba(34, 211, 238, 0.4)',
-            borderRight: '1px solid rgba(34, 211, 238, 0.4)',
+            background: 'rgba(5, 10, 20, 1)',
+            borderBottom: '1px solid rgba(175, 255, 78, 0.6)',
+            borderRight: '1px solid rgba(175, 255, 78, 0.6)',
             transform: 'translateX(-50%) translateY(-43%) rotate(45deg)',
             zIndex: 10
         }} />
@@ -168,11 +168,11 @@ const HoverLabel = () => {
         <group ref={groupRef}>
             <Html center distanceFactor={15} style={{ pointerEvents: 'none' }} zIndexRange={[1000, 500]} occlude={false}>
                 <div ref={labelRef} style={{
-                    color: '#22d3ee',
+                    color: '#afff4e',
                     fontSize: '10px', 
                     fontFamily: 'monospace',
-                    background: 'rgba(5, 10, 20, 0.95)',
-                    border: '1px solid rgba(34, 211, 238, 0.4)',
+                    background: 'rgba(5, 10, 20, 1)',
+                    border: '1px solid rgba(175, 255, 78, 0.6)',
                     padding: '2px 8px',
                     borderRadius: '4px',
                     whiteSpace: 'nowrap',
@@ -189,9 +189,9 @@ const HoverLabel = () => {
                         top: '101%',
                         width: '10px',
                         height: '10px',
-                        background: '#050a14',
-                        borderBottom: '1px solid rgba(34, 211, 238, 0.4)',
-                        borderRight: '1px solid rgba(34, 211, 238, 0.4)',
+                        background: 'rgba(5, 10, 20, 1)',
+                        borderBottom: '1px solid rgba(175, 255, 78, 0.6)',
+                        borderRight: '1px solid rgba(175, 255, 78, 0.6)',
                         transform: 'translateX(-50%) translateY(-43%) rotate(45deg)',
                         zIndex: 10
                     }} />

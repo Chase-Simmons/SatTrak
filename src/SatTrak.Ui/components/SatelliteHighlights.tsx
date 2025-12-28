@@ -71,8 +71,16 @@ const SatelliteHighlights = () => {
 
     return (
         <instancedMesh ref={meshRef} args={[undefined, undefined, MAX_HIGHLIGHTS]}>
-            <sphereGeometry args={[0.08, 8, 8]} />
-            <meshBasicMaterial color="#00B2B2" wireframe transparent opacity={0.6} />
+            <sphereGeometry args={[0.10, 8, 8]} />
+            <meshBasicMaterial 
+                color="#afff4e" 
+                wireframe 
+                transparent 
+                opacity={0.3} 
+                depthWrite={false}
+
+                blending={THREE.AdditiveBlending}
+            />
         </instancedMesh>
     );
 };

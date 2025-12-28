@@ -84,10 +84,18 @@ const DistanceGrid = ({ earthRef }: { earthRef?: React.RefObject<THREE.Mesh | nu
     const { showKmMarkers, showOrbitRanges } = useSatelliteStore();
 
     const orbitConfigs = [
-        { altitudeKm: 2000, label: "LEO", color: "#00ff00", thickness: 0.06 },
-        { altitudeKm: 20000, label: "MEO", color: "#00ffff", thickness: 0.06 },
-        { altitudeKm: 35786, label: "GEO", color: "#ff4444", thickness: 0.06 },
+        { altitudeKm: 2000, label: "LEO", color: "#22d3ee", thickness: 0.06 },
+        { altitudeKm: 20000, label: "MEO", color: "#fbbf24", thickness: 0.06 },
+        { altitudeKm: 35786, label: "GEO", color: "#fda4af", thickness: 0.06 },
     ];
+
+
+
+
+
+
+
+
 
     const kmConfigs = [
         { altitudeKm: 10000, label: "10k" },

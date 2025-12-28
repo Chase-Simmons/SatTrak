@@ -3,6 +3,7 @@
 import React, { useEffect, useRef, useMemo, useCallback } from "react";
 import { useFrame } from "@react-three/fiber";
 import { InstancedMesh, Object3D, Color, Points, Vector2 } from "three";
+import * as THREE from "three";
 import * as satellite from "satellite.js";
 import { filterSatellites } from "../utils/SatelliteSearch";
 import { useSatelliteStore } from "../hooks/useSatelliteStore";
@@ -16,7 +17,11 @@ const EARTH_RADIUS_KM = 6371;
 const SCALE_FACTOR = 1 / 1000;
 const MAX_INSTANCES = 50000;
 
-const SatelliteInstanced = () => {
+interface SatelliteInstancedProps {
+    meshRef?: React.MutableRefObject<THREE.InstancedMesh | null>;
+}
+
+const SatelliteInstanced = ({ meshRef }: SatelliteInstancedProps) => {
     const { tles, searchQuery, selectedIds, satrecCache, setHoveredId, selectSingle, setFocusedId, isCameraRotating } = useSatelliteStore(useShallow(state => ({
         tles: state.tles,
         searchQuery: state.searchQuery,
@@ -27,10 +32,12 @@ const SatelliteInstanced = () => {
         setFocusedId: state.setFocusedId,
         isCameraRotating: state.isCameraRotating
     })));
-    const meshRef = useRef<InstancedMesh>(null);
+    const internalRef = useRef<InstancedMesh>(null);
+    const instancedMeshRef = meshRef || internalRef;
     const hitProxyRef = useRef<Points>(null);
     const tempObject = useMemo(() => new Object3D(), []);
     const color = useMemo(() => new Color(), []);
+    const selectedSatelliteColor = new Color('#afff4e');
     
     const selectedSet = useMemo(() => new Set(selectedIds), [selectedIds]);
 
@@ -65,7 +72,7 @@ const SatelliteInstanced = () => {
         lastPointer.current.copy(pointer);
         velocitySkip.current = distSq > 0.002;
 
-        const mesh = meshRef.current;
+        const mesh = instancedMeshRef.current;
         const proxy = hitProxyRef.current;
         if (!mesh || !proxy || allMatchingRecords.length === 0) return;
 
@@ -113,8 +120,8 @@ const SatelliteInstanced = () => {
                     const isSelected = selectedSet.has(sat.id);
                     let scale = 1.0;
                     if (isSelected) {
-                        color.setHex(0xffffff);
-                        scale = 1.5;
+                        color.copy(selectedSatelliteColor);
+                        scale = 1.4; // Slightly larger for selection
                     } else {
                         const rKm = Math.sqrt(p.x*p.x + p.y*p.y + p.z*p.z);
                         const altKm = rKm - EARTH_RADIUS_KM;
@@ -126,7 +133,20 @@ const SatelliteInstanced = () => {
                     tempObject.scale.setScalar(scale); 
                     tempObject.updateMatrix();
                     mesh.setMatrixAt(i, tempObject.matrix);
-                    mesh.setColorAt(i, color);
+                    
+                    // Controlled bloom: 1.5x for LEO (neon pop against earth), 1.2x for others, 2.0x for selection
+                    const rKm = Math.sqrt(p.x*p.x + p.y*p.y + p.z*p.z);
+                    const orbClassValue = getOrbitClass(rKm - EARTH_RADIUS_KM);
+                    const bloomIntensity = isSelected ? 2.0 : 1.2;
+
+                    mesh.setColorAt(i, color.clone().multiplyScalar(bloomIntensity));
+
+
+
+
+
+
+
                 }
             } else {
                 tempObject.position.set(0, 0, 0);
@@ -152,7 +172,7 @@ const SatelliteInstanced = () => {
 
     return (
         <group>
-            <instancedMesh ref={meshRef} args={[undefined, undefined, MAX_INSTANCES]} frustumCulled={false}>
+            <instancedMesh ref={instancedMeshRef} args={[undefined, undefined, MAX_INSTANCES]} frustumCulled={false}>
                 <sphereGeometry args={[0.035, 6, 6]} />
                 <meshBasicMaterial transparent opacity={0.9} />
             </instancedMesh>
