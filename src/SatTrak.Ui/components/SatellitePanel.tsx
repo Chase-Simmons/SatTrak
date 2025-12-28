@@ -10,7 +10,7 @@ import * as satellite from 'satellite.js';
 
 const satLib = satellite as any;
 
-const SatelliteItem = ({ sat, isSelected, isFocused, onToggle, onFocus }: { 
+const SatelliteItem = React.memo(({ sat, isSelected, isFocused, onToggle, onFocus }: { 
     sat: any, 
     isSelected: boolean, 
     isFocused: boolean,
@@ -73,7 +73,8 @@ const SatelliteItem = ({ sat, isSelected, isFocused, onToggle, onFocus }: {
             </div>
         </div>
     );
-};
+});
+SatelliteItem.displayName = "SatelliteItem";
 
 const SatellitePanel = () => {
     const { 

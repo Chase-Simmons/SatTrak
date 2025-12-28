@@ -79,44 +79,34 @@ const ScatteringShader = {
     `
 };
 
+const COMPATIBLE_SHADER = {
+    ...ScatteringShader,
+    uniforms: {
+        ...ScatteringShader.uniforms,
+        sunDirection: { value: new THREE.Vector3(1, 0, 0) } 
+    },
+    fragmentShader: ScatteringShader.fragmentShader.replace('uniform vec3 uSunPosition;', 'uniform vec3 sunDirection;').replace('uSunPosition', 'sunDirection')
+};
+
 const Atmosphere = () => {
     const meshRef = useRef<THREE.Mesh>(null);
     const materialRef = useRef<THREE.ShaderMaterial>(null);
 
     useFrame((state) => {
         if (materialRef.current) {
-            // Update camera position uniform
             materialRef.current.uniforms.uViewPosition.value.copy(state.camera.position);
-            
-            // Use the shared sun direction from context or props if passed, 
-            // but relying on the uniform update from RealisticEarth parent traversal is risky 
-            // without explicit props.
-            // Ideally RealisticEarth passes the sun direction down.
-            // For now, RealisticEarth traverses and updates 'sunDirection', 
-            // but our shader uses 'uSunPosition'.
-            // HACK: Let's map 'sunDirection' uniform name in our shader to match Parent's expectation
-            // Or better, let's just stick to the shared name 'sunDirection'
+            // Updating 'sunDirection' is handled by parent traversal in RealisticEarth
         }
     });
-
-    // Re-defining shader with standard 'sunDirection' uniform name to compatibility
-    const CompatibleShader = useMemo(() => ({
-        ...ScatteringShader,
-        uniforms: {
-            ...ScatteringShader.uniforms,
-            sunDirection: { value: new THREE.Vector3(1, 0, 0) } // Renamed for compatibility
-        },
-        fragmentShader: ScatteringShader.fragmentShader.replace('uniform vec3 uSunPosition;', 'uniform vec3 sunDirection;').replace('uSunPosition', 'sunDirection')
-    }), []);
 
     return (
         <mesh ref={meshRef} scale={[1.025, 1.025, 1.025]}>
             <sphereGeometry args={[ATMOSPHERE_RADIUS, 128, 128]} />
             <shaderMaterial
                 ref={materialRef}
-                args={[CompatibleShader]}
+                args={[COMPATIBLE_SHADER]}
                 blending={THREE.AdditiveBlending}
-                side={THREE.BackSide} /* Render on Inside of slightly larger sphere for better volume illusion? No, FrontSide is better for simple shell */
+                side={THREE.BackSide} 
                 transparent
                 depthWrite={false}
             />

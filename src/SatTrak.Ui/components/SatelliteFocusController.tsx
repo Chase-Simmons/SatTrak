@@ -8,7 +8,7 @@ const satLib = satellite as any;
 const SCALE_FACTOR = 1 / 1000;
 
 const SatelliteFocusController = () => {
-    const { focusedId, tles, setFocusedId } = useSatelliteStore();
+    const { focusedId, tleMap, setFocusedId } = useSatelliteStore();
     const { camera, controls } = useThree() as any;
     
     const targetPos = React.useRef(new THREE.Vector3(0, 0, 0));
@@ -34,8 +34,8 @@ const SatelliteFocusController = () => {
 
     const focusedSat = React.useMemo(() => {
         if (!focusedId) return null;
-        return tles.find(s => s.id === focusedId);
-    }, [focusedId, tles]);
+        return tleMap.get(focusedId) || null;
+    }, [focusedId, tleMap]);
 
     useFrame(() => {
         if (focusedSat) {

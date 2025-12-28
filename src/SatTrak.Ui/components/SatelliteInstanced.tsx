@@ -130,27 +130,31 @@ const SatelliteInstanced = ({ meshRef }: SatelliteInstancedProps) => {
 
                     const isSelected = selectedSet.has(sat.id);
                     let scale = 1.0;
+                    
+                    // Bloom Intensity: 2.0 for selection, 1.2 for others (Comment mentioned 1.5 for LEO but code was 1.2)
+                    let bloomIntensity = isSelected ? 2.0 : 1.2; 
+
                     if (isSelected) {
                         color.copy(selectedSatelliteColor);
-                        scale = 1.4; // Slightly larger for selection
+                        scale = 1.4; 
                     } else {
                         const rKm = Math.sqrt(p.x*p.x + p.y*p.y + p.z*p.z);
                         const altKm = rKm - EARTH_RADIUS_KM;
                         const orbClass = getOrbitClass(altKm);
                         color.setHex(getOrbitColor(orbClass));
                         scale = orbClass === 'LEO' ? 1.0 : orbClass === 'MEO' ? 1.5 : 2.0;
+                        
+                        // Optional: Implement the LEO bloom mentioned in comment?
+                        if (orbClass === 'LEO') bloomIntensity = 1.5;
                     }
                     
                     tempObject.scale.setScalar(scale); 
                     tempObject.updateMatrix();
                     mesh.setMatrixAt(i, tempObject.matrix);
                     
-                    // Controlled bloom: 1.5x for LEO (neon pop against earth), 1.2x for others, 2.0x for selection
-                    const rKm = Math.sqrt(p.x*p.x + p.y*p.y + p.z*p.z);
-                    const orbClassValue = getOrbitClass(rKm - EARTH_RADIUS_KM);
-                    const bloomIntensity = isSelected ? 2.0 : 1.2;
-
-                    mesh.setColorAt(i, color.clone().multiplyScalar(bloomIntensity));
+                    // In-place modification to avoid .clone() allocation
+                    color.multiplyScalar(bloomIntensity);
+                    mesh.setColorAt(i, color);
 
 
 
