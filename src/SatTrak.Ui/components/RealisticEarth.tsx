@@ -250,7 +250,7 @@ declare global {
 const satLib = satellite as any;
 const EARTH_RADIUS = 6.371;
 
-const RealisticEarth = () => {
+const RealisticEarth = ({ meshRef }: { meshRef?: React.Ref<THREE.Mesh> }) => {
     const [colorMap, nightMap, heightMap] = useTexture([
         '/textures/8k_earth_daymap.png',
         '/textures/8k_earth_nightmap.png',
@@ -273,7 +273,20 @@ const RealisticEarth = () => {
         });
     }, [colorMap, nightMap, heightMap, cloudMap]);
 
-    const earthRef = useRef<THREE.Mesh>(null);
+    const internalRef = useRef<THREE.Mesh>(null);
+    
+    // Sync external ref
+    React.useLayoutEffect(() => {
+        if (!meshRef) return;
+        if (typeof meshRef === 'function') {
+            meshRef(internalRef.current);
+        } else {
+            (meshRef as React.MutableRefObject<THREE.Mesh | null>).current = internalRef.current;
+        }
+    });
+
+    const earthRef = internalRef;
+    
     const materialRef = useRef<THREE.ShaderMaterial>(null);
     const atmosphereGroupRef = useRef<THREE.Group>(null);
     

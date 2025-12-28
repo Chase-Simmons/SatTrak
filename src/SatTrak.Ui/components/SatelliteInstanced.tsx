@@ -19,7 +19,7 @@ const SCALE_FACTOR = 1 / 1000;
 const MAX_INSTANCES = 50000;
 
 interface SatelliteInstancedProps {
-    meshRef?: React.MutableRefObject<THREE.InstancedMesh | null>;
+    meshRef?: React.Ref<THREE.InstancedMesh>;
 }
 
 const SatelliteInstanced = ({ meshRef }: SatelliteInstancedProps) => {
@@ -33,7 +33,18 @@ const SatelliteInstanced = ({ meshRef }: SatelliteInstancedProps) => {
         setFocusedId: state.setFocusedId
     })));
     const internalRef = useRef<InstancedMesh>(null);
-    const instancedMeshRef = meshRef || internalRef;
+    
+    // Sync external ref
+    React.useLayoutEffect(() => {
+        if (!meshRef) return;
+        if (typeof meshRef === 'function') {
+            meshRef(internalRef.current);
+        } else {
+            (meshRef as React.MutableRefObject<InstancedMesh | null>).current = internalRef.current;
+        }
+    });
+
+    const instancedMeshRef = internalRef;
     const hitProxyRef = useRef<Points>(null);
     const tempObject = useMemo(() => new Object3D(), []);
     const color = useMemo(() => new Color(), []);

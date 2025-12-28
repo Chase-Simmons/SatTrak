@@ -53,7 +53,8 @@ const Globe = () => {
     const startRotationTimeout = useRef<NodeJS.Timeout | null>(null);
     const dragLockTimeout = useRef<NodeJS.Timeout | null>(null);
     const containerRef = useRef<HTMLDivElement>(null);
-    const satRef = useRef(null);
+    const [satMesh, setSatMesh] = useState<THREE.InstancedMesh | null>(null);
+    const [earthBloomMesh, setEarthBloomMesh] = useState<THREE.Mesh | null>(null);
 
     React.useEffect(() => {
         const setDown = () => { 
@@ -198,7 +199,7 @@ const Globe = () => {
                         </group>
                     ) : (
                         <Suspense fallback={null}>
-                             <RealisticEarth />
+                             <RealisticEarth meshRef={setEarthBloomMesh} />
                              {/* Realistic Graticule overlay */}
                              {showGraticule && (
                                  <group scale={[1.002, 1.002, 1.002]}>
@@ -244,7 +245,7 @@ const Globe = () => {
                 {sceneReady && <DistanceGrid earthRef={{ current: earthMesh }} />}
                 <SceneReady onReady={setSceneReady} />
 
-                <SatelliteInstanced meshRef={satRef} />
+                <SatelliteInstanced meshRef={setSatMesh} />
                 <EffectComposer enableNormalPass={false}>
                     <Bloom 
                         luminanceThreshold={0.5} 
@@ -252,15 +253,28 @@ const Globe = () => {
                         intensity={0.4} 
                         radius={0.8}
                     />
+                     {satMesh && (
                         <SelectiveBloom 
-                        lights={undefined} 
-                        selection={satRef} 
-                        intensity={0.2}
-                        radius={0.4} 
-                        luminanceThreshold={0.1} 
-                        luminanceSmoothing={0.4}
-                        mipmapBlur
-                    />
+                            lights={[]} 
+                            selection={[satMesh]} 
+                            intensity={0.2}
+                            radius={0.4} 
+                            luminanceThreshold={0.1} 
+                            luminanceSmoothing={0.4}
+                            mipmapBlur
+                        />
+                     )}
+                    {earthBloomMesh && (
+                        <SelectiveBloom 
+                            lights={[]} 
+                            selection={[earthBloomMesh]} 
+                            intensity={0.3}  
+                            radius={0.4} 
+                            luminanceThreshold={1.0} 
+                            luminanceSmoothing={0.4}
+                            mipmapBlur
+                        />
+                    )}
                 </EffectComposer>
 
                 <FpsTracker fpsRef={fpsRef} />

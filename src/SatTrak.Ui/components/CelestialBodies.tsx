@@ -42,6 +42,54 @@ const GlowShader = {
     `
 };
 
+const MoonSurfaceShader = {
+    uniforms: {
+        uMap: { value: null },
+        uSunPosition: { value: new THREE.Vector3(0, 0, 0) },
+    },
+    vertexShader: `
+        varying vec2 vUv;
+        varying vec3 vNormal;
+        varying vec3 vWorldPosition;
+        void main() {
+            vUv = uv;
+            vNormal = normalize(mat3(modelMatrix) * normal);
+            vec4 worldPosition = modelMatrix * vec4(position, 1.0);
+            vWorldPosition = worldPosition.xyz;
+            gl_Position = projectionMatrix * viewMatrix * worldPosition;
+        }
+    `,
+    fragmentShader: `
+        varying vec2 vUv;
+        varying vec3 vNormal;
+        varying vec3 vWorldPosition;
+        uniform sampler2D uMap;
+        uniform vec3 uSunPosition;
+        
+        void main() {
+            vec4 texColor = texture2D(uMap, vUv);
+            vec3 sunDir = normalize(uSunPosition - vWorldPosition);
+            
+            // Directional Light Calculation (Lambert)
+            // Calculate how much the surface normal points towards the sun
+            float nDotL = max(0.0, dot(vNormal, sunDir));
+            
+            // "Reflective" Boost:
+            // Multiply the light intensity on the lit side to make it pop against the darkness.
+            // A higher multiplier simulates a brighter surface reflection.
+            float lightIntensity = nDotL * 1.5; 
+            
+            // Add a tiny bit of ambient light so the dark side isn't a void
+            float ambient = 0.01;
+
+            // Combine texture, lighting, and boost
+            vec3 finalColor = texColor.rgb * (lightIntensity + ambient);
+            
+            gl_FragColor = vec4(finalColor, 1.0);
+        }
+    `
+};
+
 const getMoonPosition = (date: Date) => {
     const T = (date.getTime() / 1000 / 86400 + 2440587.5 - 2451545.0) / 36525;
     
@@ -84,6 +132,7 @@ const CelestialBodies = () => {
     const innerGlowMat = useRef<THREE.ShaderMaterial>(null);
     const outerGlowMat = useRef<THREE.ShaderMaterial>(null);
     const moonRef = useRef<THREE.Group>(null);
+    const moonSurfaceMat = useRef<THREE.ShaderMaterial>(null); // New Surface Ref
     const lightRef = useRef<THREE.DirectionalLight>(null);
 
     const moonMap = useTexture('/textures/8k_moon.png');
@@ -147,6 +196,12 @@ const CelestialBodies = () => {
             }
             if (lightRef.current) {
                 lightRef.current.position.copy(sunPosVisual);
+            }
+            
+            // Update Surface Shader
+            if (moonSurfaceMat.current) {
+                // Ensure the shader knows exactly where the sun is 
+                moonSurfaceMat.current.uniforms.uSunPosition.value.copy(sunPosVisual);
             }
         }
 
@@ -225,14 +280,16 @@ const CelestialBodies = () => {
                         opacity={0.0} 
                     />
                 </mesh>
-                {/* Inner Solid Core - StandardMaterial to react to Sun light and avoid bloom */}
+                {/* Inner Solid Core - Custom Shader for "Reflective" brightness */}
                 <mesh frustumCulled={false} rotation={[0, -Math.PI / 2, 0]}>
                     <sphereGeometry args={[MOON_CORE_RADIUS, 32, 32]} />
-                    <meshStandardMaterial 
-                        map={moonMap}
-                        color="#ffffff" 
-                        roughness={0.9}
-                        metalness={0.0}
+                    <shaderMaterial 
+                        ref={moonSurfaceMat}
+                        {...MoonSurfaceShader}
+                        uniforms={{
+                            uMap: { value: moonMap },
+                            uSunPosition: { value: new THREE.Vector3(0, 0, 0) }
+                        }}
                     />
                 </mesh>
             </group>
