@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useEffect, useRef, useMemo, useCallback } from "react";
+import { Select } from "@react-three/postprocessing";
 import { useFrame } from "@react-three/fiber";
 import { InstancedMesh, Object3D, Color, Points, Vector2 } from "three";
 import * as THREE from "three";
@@ -22,15 +23,14 @@ interface SatelliteInstancedProps {
 }
 
 const SatelliteInstanced = ({ meshRef }: SatelliteInstancedProps) => {
-    const { tles, searchQuery, selectedIds, satrecCache, setHoveredId, selectSingle, setFocusedId, isCameraRotating } = useSatelliteStore(useShallow(state => ({
+    const { tles, searchQuery, selectedIds, satrecCache, setHoveredId, selectSingle, setFocusedId } = useSatelliteStore(useShallow(state => ({
         tles: state.tles,
         searchQuery: state.searchQuery,
         selectedIds: state.selectedIds,
         satrecCache: state.satrecCache,
         setHoveredId: state.setHoveredId,
         selectSingle: state.selectSingle,
-        setFocusedId: state.setFocusedId,
-        isCameraRotating: state.isCameraRotating
+        setFocusedId: state.setFocusedId
     })));
     const internalRef = useRef<InstancedMesh>(null);
     const instancedMeshRef = meshRef || internalRef;

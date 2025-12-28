@@ -6,7 +6,7 @@ import SatelliteLabels from "./SatelliteLabels";
 import SatelliteHighlights from "./SatelliteHighlights";
 import { Canvas, useThree, useFrame } from "@react-three/fiber";
 import { OrbitControls, Stars, useTexture } from "@react-three/drei";
-import { EffectComposer, Bloom } from "@react-three/postprocessing";
+import { EffectComposer, Bloom, SelectiveBloom, Selection, Select } from "@react-three/postprocessing";
 import { Vector3 } from "three";
 import { useSatelliteStore } from "../hooks/useSatelliteStore";
 import SatelliteInstanced from "./SatelliteInstanced";
@@ -53,6 +53,7 @@ const Globe = () => {
     const startRotationTimeout = useRef<NodeJS.Timeout | null>(null);
     const dragLockTimeout = useRef<NodeJS.Timeout | null>(null);
     const containerRef = useRef<HTMLDivElement>(null);
+    const satRef = useRef(null);
 
     React.useEffect(() => {
         const setDown = () => { 
@@ -243,7 +244,25 @@ const Globe = () => {
                 {sceneReady && <DistanceGrid earthRef={{ current: earthMesh }} />}
                 <SceneReady onReady={setSceneReady} />
 
-                <SatelliteInstanced />
+                <SatelliteInstanced meshRef={satRef} />
+                <EffectComposer enableNormalPass={false}>
+                    <Bloom 
+                        luminanceThreshold={0.5} 
+                        mipmapBlur 
+                        intensity={0.4} 
+                        radius={0.8}
+                    />
+                        <SelectiveBloom 
+                        lights={undefined} 
+                        selection={satRef} 
+                        intensity={0.2}
+                        radius={0.4} 
+                        luminanceThreshold={0.1} 
+                        luminanceSmoothing={0.4}
+                        mipmapBlur
+                    />
+                </EffectComposer>
+
                 <FpsTracker fpsRef={fpsRef} />
 
                 <OrbitPath />
@@ -253,15 +272,6 @@ const Globe = () => {
 
                 <CameraController />
                 <AltitudeLogic barRef={altBarRef} textRef={altTextRef} />
-
-                <EffectComposer enableNormalPass={false}>
-                    <Bloom 
-                        luminanceThreshold={0.7} 
-                        mipmapBlur 
-                        intensity={0.6} 
-                        radius={0.8}
-                    />
-                </EffectComposer>
 
                 <ZoomInertia controlsRef={controlsRef} />
 
