@@ -94,8 +94,12 @@ const SatellitePanel = () => {
         setShowKmMarkers,
         setShowOrbitRanges,
         setShowCelestialBodies,
+        showGraticule,
+        setShowGraticule,
         focusedId,
-        setFocusedId
+        setFocusedId,
+        viewMode,
+        setViewMode
     } = useSatelliteStore(useShallow(state => ({
         tles: state.tles, 
         searchQuery: state.searchQuery, 
@@ -114,8 +118,12 @@ const SatellitePanel = () => {
         setShowKmMarkers: state.setShowKmMarkers,
         setShowOrbitRanges: state.setShowOrbitRanges,
         setShowCelestialBodies: state.setShowCelestialBodies,
+        showGraticule: state.showGraticule,
+        setShowGraticule: state.setShowGraticule,
         focusedId: state.focusedId,
-        setFocusedId: state.setFocusedId
+        setFocusedId: state.setFocusedId,
+        viewMode: state.viewMode,
+        setViewMode: state.setViewMode
     })));
     
     const [visibleCount, setVisibleCount] = React.useState(100);
@@ -474,6 +482,13 @@ const SatellitePanel = () => {
                                 />
                             </div>
                             <div className={styles.settingRow}>
+                                <span>LAT/LON GRID</span>
+                                <div 
+                                    className={`${styles.toggle} ${showGraticule ? styles.toggleActive : ''}`}
+                                    onClick={() => setShowGraticule(!showGraticule)}
+                                />
+                            </div>
+                            <div className={styles.settingRow}>
                                 <span>ORBITAL RANGES (LEO/GEO)</span>
                                 <div 
                                     className={`${styles.toggle} ${showOrbitRanges ? styles.toggleActive : ''}`}
@@ -485,6 +500,13 @@ const SatellitePanel = () => {
                                 <div 
                                     className={`${styles.toggle} ${showCelestialBodies ? styles.toggleActive : ''}`}
                                     onClick={() => setShowCelestialBodies(!showCelestialBodies)}
+                                />
+                            </div>
+                            <div className={styles.settingRow}>
+                                <span>VIEW MODE ({viewMode.toUpperCase()})</span>
+                                <div 
+                                    className={`${styles.toggle} ${viewMode === 'realistic' ? styles.toggleActive : ''}`}
+                                    onClick={() => setViewMode(viewMode === 'wireframe' ? 'realistic' : 'wireframe')}
                                 />
                             </div>
                         </div>

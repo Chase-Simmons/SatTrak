@@ -54,7 +54,6 @@ const CameraController = () => {
                 );
 
                 if (controls) {
-                    // 1. ALWAYS look at Earth center
                     const center = new THREE.Vector3(0, 0, 0);
                     controls.target.lerp(center, 0.2);
                     
@@ -62,8 +61,7 @@ const CameraController = () => {
                     const satDist = satVector.length();
                     const satDir = satVector.normalize();
                     
-                    // Determine ideal viewing distance (just outside the satellite)
-                    const zoomBuffer = 4; // Distance units away from the satellite
+                    const zoomBuffer = 4;
                     const idealDist = satDist + zoomBuffer;
 
                     if (isTransitioning) {
@@ -85,7 +83,6 @@ const CameraController = () => {
                 }
             }
         } else if (controls) {
-            // Smoothly return target to center if it drifted (though it shouldn't now)
             const center = new THREE.Vector3(0, 0, 0);
             if (controls.target.lengthSq() > 0.001) {
                 controls.target.lerp(center, 0.05);

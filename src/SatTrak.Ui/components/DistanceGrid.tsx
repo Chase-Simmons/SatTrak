@@ -52,7 +52,10 @@ const Ring = ({ altitudeKm, label, color = "#444", earthRef, orientation = 'xz',
                     <Html 
                         center 
                         distanceFactor={10} 
-                        occlude={earthRef ? [earthRef as any] : true} 
+                        // Safely re-enable occlusion: Only occlude if earthRef is valid.
+                        // TS-Ignore/Cast because Drei types are strict about nullability, 
+                        // but at runtime `occlude` accepts an array of Objects or false.
+                        occlude={earthRef?.current ? [earthRef as any] : undefined}
                         zIndexRange={[40, 0]} 
                         style={{ pointerEvents: 'none' }}
                     >

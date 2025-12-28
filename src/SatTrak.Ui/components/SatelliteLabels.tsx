@@ -79,7 +79,7 @@ const SingleLabel = ({ satellite, satRec, initialPos }: LabelProps) => {
 
     return (
         <group ref={groupRef}>
-            <Html center distanceFactor={15} style={{ pointerEvents: 'none' }} zIndexRange={[100, 0]}>
+            <Html center distanceFactor={15} style={{ pointerEvents: 'none' }} zIndexRange={[100, 0]} occlude={false}>
                 <SpeechBubble text={satellite.name || `SAT-${satellite.id}`} />
             </Html>
         </group>
@@ -166,7 +166,7 @@ const HoverLabel = () => {
 
     return (
         <group ref={groupRef}>
-            <Html center distanceFactor={15} style={{ pointerEvents: 'none' }} zIndexRange={[1000, 500]}>
+            <Html center distanceFactor={15} style={{ pointerEvents: 'none' }} zIndexRange={[1000, 500]} occlude={false}>
                 <div ref={labelRef} style={{
                     color: '#22d3ee',
                     fontSize: '10px', 
@@ -231,6 +231,11 @@ const SatelliteLabels = () => {
         return selectedIds.map(id => tleMap.get(id)).filter(Boolean) as any[];
     }, [tleMap, selectedIds]);
 
+    // Force instant update when selection changes
+    React.useEffect(() => {
+        lastUpdate.current = 0;
+    }, [selectedSats]);
+
     useFrame((state) => {
         if (!showLabels || selectedSats.length === 0) {
             if (visibleLabels.length > 0) setVisibleLabels([]);
@@ -238,7 +243,11 @@ const SatelliteLabels = () => {
         }
 
         const now = state.clock.getElapsedTime();
-        if (now - lastUpdate.current < 0.25) return;
+
+        // ADAPTIVE THROTTLE: Sync exact frame for small selections, throttle for large clouds
+        const throttle = selectedSats.length < 5 ? 0.0 : 0.25;
+
+        if (now - lastUpdate.current < throttle) return;
         
         lastUpdate.current = now;
 
@@ -251,7 +260,7 @@ const SatelliteLabels = () => {
         
         for (let i = 0; i < selectedSats.length; i++) {
             const sat = selectedSats[i];
-            if (sat.id === currentHoverId) continue;
+            
             
             const rec = useSatelliteStore.getState().satrecCache.get(sat.id);
             if (!rec) continue;
@@ -275,7 +284,23 @@ const SatelliteLabels = () => {
 
         candidates.sort((a, b) => a.dist - b.dist);
         const maxLabels = selectedSats.length > 200 ? 15 : 40; 
-        setVisibleLabels(candidates.slice(0, maxLabels));
+        const newSubset = candidates.slice(0, maxLabels);
+
+        // OPTIMIZATION: Only update state if the LIST of satellites changes.
+        // Ignore position changes, as SingleLabel handles its own animation via useFrame.
+        let hasChanged = newSubset.length !== visibleLabels.length;
+        if (!hasChanged) {
+            for (let i = 0; i < newSubset.length; i++) {
+                if (newSubset[i].sat.id !== visibleLabels[i].sat.id) {
+                    hasChanged = true;
+                    break;
+                }
+            }
+        }
+
+        if (hasChanged) {
+            setVisibleLabels(newSubset);
+        }
     });
 
     if (!showLabels) return null;

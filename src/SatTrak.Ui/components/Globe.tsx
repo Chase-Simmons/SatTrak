@@ -19,6 +19,149 @@ import CelestialBodies from "./CelestialBodies";
 import CameraController from "./CameraController";
 import * as THREE from "three";
 import { perfState } from "../utils/PerformanceState";
+import * as satellite from 'satellite.js';
+import { useTexture } from "@react-three/drei";
+import Atmosphere from "./Atmosphere";
+import { shaderMaterial } from "@react-three/drei";
+import { extend, ReactThreeFiber } from "@react-three/fiber";
+
+// Create custom shader material
+const EarthMaterial = shaderMaterial(
+  {
+    dayTexture: new THREE.Texture(),
+    nightTexture: new THREE.Texture(),
+    heightTexture: new THREE.Texture(),
+    sunDirection: new THREE.Vector3(1, 0, 0),
+    displacementScale: 0.2, // Adjustable scale
+  },
+  // Vertex Shader
+  `
+    varying vec2 vUv;
+    varying vec3 vNormal;
+    varying vec3 vPosition;
+    
+    uniform sampler2D heightTexture;
+    uniform float displacementScale;
+
+    void main() {
+      vUv = uv;
+      vNormal = normalize(normalMatrix * normal);
+      
+      // Vertex Displacement
+      // Read height from texture (assuming grayscale)
+      float height = texture2D(heightTexture, uv).r;
+      
+      // Displace along normal
+      // We need to displace in Object Space (position), not View Space.
+      vec3 displacedPosition = position + normal * height * displacementScale;
+      
+      vPosition = (modelViewMatrix * vec4(displacedPosition, 1.0)).xyz;
+      gl_Position = projectionMatrix * modelViewMatrix * vec4(displacedPosition, 1.0);
+    }
+  `,
+  // Fragment Shader
+  `
+    uniform sampler2D dayTexture;
+    uniform sampler2D nightTexture;
+    uniform sampler2D heightTexture;
+    uniform vec3 sunDirection;
+
+    varying vec2 vUv;
+    varying vec3 vNormal;
+    varying vec3 vPosition;
+
+    void main() {
+      vec3 vNormalNorm = normalize(vNormal);
+      vec3 sunDirNorm = normalize(sunDirection);
+      float intensity = dot(vNormalNorm, sunDirNorm);
+      
+      vec4 daySample = texture2D(dayTexture, vUv);
+      vec4 nightSample = texture2D(nightTexture, vUv);
+
+      // Wider Centered Terminator: Gradual twilight blend
+      float dayMask = smoothstep(-0.15, 0.15, intensity);
+      float nightMask = 1.0 - dayMask;
+      
+      // Balanced Night Side: Dark but Detailed
+      vec3 nightBase = pow(max(vec3(0.0), nightSample.rgb), vec3(1.5)) * 0.75;
+      
+      // Radiant City Lights
+      vec3 urbanGlow = pow(max(vec3(0.0), nightSample.rgb - 0.1), vec3(2.5)) * 20.0;
+      
+      // Final Composite Night Side
+      vec3 nightFinal = (nightBase + urbanGlow) * nightMask;
+      
+      // Natural Day Side
+      vec3 dayFinal = daySample.rgb * dayMask;
+      
+      vec3 finalColor = dayFinal + nightFinal;
+      
+      // Specular Reflection
+      float height = texture2D(heightTexture, vUv).r;
+      if (height < 0.1) {
+          vec3 viewDir = normalize(-vPosition);
+          vec3 halfVector = normalize(sunDirNorm + viewDir);
+          float NdotH = max(dot(vNormalNorm, halfVector), 0.0);
+          float specular = pow(max(0.0, NdotH), 64.0);
+          finalColor += vec3(0.3) * specular * dayMask;
+      }
+
+      gl_FragColor = vec4(finalColor, 1.0);
+    }
+  `
+);
+
+// Create custom cloud shader material
+const CloudMaterial = shaderMaterial(
+  {
+    alphaMap: new THREE.Texture(),
+    sunDirection: new THREE.Vector3(1, 0, 0),
+    opacity: 0.8,
+  },
+  `
+    varying vec2 vUv;
+    varying vec3 vNormal;
+    void main() {
+      vUv = uv;
+      vNormal = normalize(normalMatrix * normal);
+      gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+    }
+  `,
+  `
+    uniform sampler2D alphaMap;
+    uniform vec3 sunDirection;
+    uniform float opacity;
+    varying vec2 vUv;
+    varying vec3 vNormal;
+    void main() {
+      vec3 normal = normalize(vNormal);
+      float alpha = texture2D(alphaMap, vUv).r * opacity;
+      float intensity = dot(normal, normalize(sunDirection));
+      
+      // Much wider centered terminator for clouds
+      float dayMask = smoothstep(-0.15, 0.15, intensity);
+      
+      // Clouds remain subtly visible in shadow detail
+      float cloudAlpha = alpha * max(0.2, dayMask);
+      
+      gl_FragColor = vec4(vec3(dayMask * 0.9), cloudAlpha);
+    }
+  `
+);
+
+extend({ EarthMaterial, CloudMaterial });
+
+// Add type definition for JSX
+declare global {
+  namespace JSX {
+    interface IntrinsicElements {
+      earthMaterial: any;
+      cloudMaterial: any;
+    }
+  }
+}
+
+const satLib = satellite as any;
 
 const EARTH_RADIUS = 6.371; // Normalized radius for visualization
 
@@ -43,6 +186,7 @@ const FpsTracker = ({ fpsRef }: { fpsRef: React.RefObject<HTMLDivElement | null>
   });
   return null;
 };
+
 
 const RotationStatus = () => {
     const isRotating = useSatelliteStore(state => state.isCameraRotating);
@@ -102,27 +246,182 @@ const WorldLines = () => {
   );
 };
 
+const CloudLayer = () => {
+    const cloudMap = useTexture('/textures/8k_earth_clouds.png');
+    useMemo(() => {
+        cloudMap.wrapS = THREE.RepeatWrapping;
+        cloudMap.wrapT = THREE.ClampToEdgeWrapping;
+    }, [cloudMap]);
+
+    return (
+        <mesh scale={[1.006, 1.006, 1.006]}>
+             <sphereGeometry args={[EARTH_RADIUS, 128, 128]} />
+             {/* @ts-ignore */}
+             <cloudMaterial 
+                alphaMap={cloudMap}
+                transparent 
+                opacity={0.8}
+                depthWrite={false}
+             />
+        </mesh>
+    );
+};
+
+const StarField = () => {
+    const [stars, milkyWay] = useTexture([
+        '/textures/8k_stars.png',
+        '/textures/8k_stars_milky_way.png'
+    ]);
+
+    useMemo(() => {
+        [stars, milkyWay].forEach(t => {
+            t.anisotropy = 16;
+            t.minFilter = THREE.LinearFilter;
+            t.magFilter = THREE.LinearFilter;
+            t.needsUpdate = true;
+        });
+    }, [stars, milkyWay]);
+    
+    return (
+        <group renderOrder={-100}>
+            {/* Background Stars */}
+            <mesh scale={[50000, 50000, 50000]}>
+                <sphereGeometry args={[1, 128, 128]} />
+                <meshBasicMaterial 
+                    map={stars} 
+                    side={THREE.BackSide} 
+                    color="#444444" // Restored from #222222
+                    depthWrite={false}
+                />
+            </mesh> 
+            
+            {/* Milky Way Overlay */}
+            <mesh scale={[49000, 49000, 49000]} rotation={[1.0, 0, 0]}>
+                <sphereGeometry args={[1, 128, 128]} />
+                <meshBasicMaterial 
+                    map={milkyWay} 
+                    side={THREE.BackSide} 
+                    transparent 
+                    opacity={0.4} // Restored from 0.2
+                    depthWrite={false}
+                    blending={THREE.AdditiveBlending}
+                />
+            </mesh>
+        </group>
+    );
+};
+
+const RealisticEarth = () => {
+    const [colorMap, nightMap, heightMap] = useTexture([
+        '/textures/8k_earth_daymap.png',
+        '/textures/8k_earth_nightmap.png',
+        '/textures/8k_earth_heightmap.png'
+    ]);
+
+    const sunDir = useMemo(() => new THREE.Vector3(10, 0, 50).normalize(), []);
+    
+    // Fix Texture Wrapping (The "Tear")
+    useMemo(() => {
+        [colorMap, nightMap, heightMap].forEach(t => {
+            t.wrapS = THREE.RepeatWrapping;
+            t.wrapT = THREE.ClampToEdgeWrapping;
+            t.anisotropy = 16;
+            t.offset.x = 0; 
+            t.needsUpdate = true;
+        });
+    }, [colorMap, nightMap, heightMap]);
+
+    const earthRef = useRef<THREE.Mesh>(null);
+    const atmosphereGroupRef = useRef<THREE.Group>(null);
+
+    useFrame((state) => {
+        if (earthRef.current) {
+            const now = new Date();
+            const j = satLib.jday(
+                now.getUTCFullYear(),
+                now.getUTCMonth() + 1,
+                now.getUTCDate(),
+                now.getUTCHours(),
+                now.getUTCMinutes(),
+                now.getUTCSeconds()
+            );
+            
+            const sunPosFn = satLib.sunPos || satLib.sun_position || satLib.sunpos;
+            const sunPosEci = sunPosFn ? sunPosFn(j) : null;
+            
+            if (sunPosEci && sunPosEci.rsun) {
+                const r = sunPosEci.rsun;
+                const sunDirWorld = new THREE.Vector3(r[0], r[2], -r[1]).normalize();
+                const sunDirView = sunDirWorld.clone().transformDirection(state.camera.matrixWorldInverse);
+
+                // 1. Update Earth & Cloud Materials
+                if (atmosphereGroupRef.current) {
+                    atmosphereGroupRef.current.traverse((child) => {
+                        if (child instanceof THREE.Mesh) {
+                            if (child.material instanceof THREE.ShaderMaterial) {
+                                if (child.material.uniforms.sunDirection) {
+                                    child.material.uniforms.sunDirection.value.copy(sunDirView);
+                                }
+                            }
+                        }
+                    });
+                }
+            }
+        }
+    });
+
+    return (
+        <group ref={atmosphereGroupRef}>
+            <mesh ref={earthRef} rotation={[0, Math.PI, 0]}>
+                <sphereGeometry args={[EARTH_RADIUS, 256, 256]} /> 
+                {/* @ts-ignore */}
+                <earthMaterial 
+                    dayTexture={colorMap} 
+                    nightTexture={nightMap}
+                    heightTexture={heightMap}
+                    sunDirection={sunDir}
+                    displacementScale={0.015} 
+                />
+            </mesh>
+            <Suspense fallback={null}>
+                <CloudLayer />
+            </Suspense>
+            <Atmosphere />
+        </group>
+    );
+};
+
+
 const Graticule = () => {
     const lines = useMemo(() => {
         const lineSegments: Float32Array[] = [];
-        const segments = 64; // Resolution of circles
-        
-        // Latitudes (Parallels) -80 to 80
+        const segments = 64; 
         for (let lat = -80; lat <= 80; lat += 10) {
             if (lat === 0) continue; 
             const points: number[] = [];
             for (let i = 0; i <= segments; i++) {
                 const lon = (i / segments) * 360 - 180;
+                // Graticule must match Earth orientation.
+                // If Earth Mesh is rotated PI, Graticule must ALSO be rotated PI?
+                // Or we generate points rotated?
+                // Let's rely on the parent group rotation. 
+                // Wait. RealisticEarth has mesh rotation PI. Graticule is sibling.
+                // So Graticule needs rotation PI too? YES if it's inside Realistic view.
+                // But Graticule is rendered outside RealisticEarth.
+                // Let's keep Graticule standard (0 rot).
+                // Earth Group rotates by GMST - PI.
+                // So Graticule (0 rot) + Group (GMST - PI) = Graticule at GMST - PI.
+                // This means Graticule is 180 deg off?
+                // YES. 
+                // So we need to rotate Graticule PI as well if we are rotating the group PI off.
+                
                 const vec = toCartesian(lat, lon, 0);
                 points.push(vec.x, vec.y, vec.z);
             }
             lineSegments.push(new Float32Array(points));
         }
-
-        // Longitudes (Meridians) 0 to 360
         for (let lon = -180; lon < 180; lon += 10) {
             const points: number[] = [];
-            // Pole to pole
             for (let i = 0; i <= segments; i++) {
                 const lat = (i / segments) * 180 - 90;
                 const vec = toCartesian(lat, lon, 0);
@@ -133,8 +432,9 @@ const Graticule = () => {
         return lineSegments;
     }, []);
 
+    // Rotate Graticule PI to match the Mesh Rotation compensation
     return (
-        <group>
+        <group rotation={[0, Math.PI, 0]}>
             {lines.map((line, i) => (
                 <line key={i}>
                     <bufferGeometry>
@@ -150,13 +450,37 @@ const Graticule = () => {
     );
 };
 
-// Helper to signal when Canvas children are mounted
 const SceneReady = ({ onReady }: { onReady: (r: boolean) => void }) => {
     React.useLayoutEffect(() => {
         onReady(true);
     }, [onReady]);
     return null;
 }
+
+const EarthGroup = ({ children }: { children: React.ReactNode }) => {
+    const groupRef = useRef<THREE.Group>(null);
+    useFrame(() => {
+        if (groupRef.current) {
+             const now = new Date();
+             const j = satLib.jday(
+                now.getUTCFullYear(),
+                now.getUTCMonth() + 1,
+                now.getUTCDate(),
+                now.getUTCHours(),
+                now.getUTCMinutes(),
+                now.getUTCSeconds()
+             );
+             const gmst = satLib.gstime(j);
+             
+             // Total Rotation = GMST.
+             // We rotated the child meshes by PI to hide the seam.
+             // So: GroupRot + PI = GMST  =>  GroupRot = GMST - PI.
+             
+             groupRef.current.rotation.y = gmst - Math.PI;
+        }
+    });
+    return <group ref={groupRef}>{children}</group>;
+};
 
 const Globe = () => {
     const fetchTles = useSatelliteStore(state => state.fetchTles);
@@ -165,6 +489,8 @@ const Globe = () => {
     const clearSelection = useSatelliteStore(state => state.clearSelection);
     const setFocusedId = useSatelliteStore(state => state.setFocusedId);
     const setIsCameraRotating = useSatelliteStore(state => state.setIsCameraRotating);
+    const viewMode = useSatelliteStore(state => state.viewMode);
+    const showGraticule = useSatelliteStore(state => state.showGraticule);
     
     const [earthMesh, setEarthMesh] = useState<THREE.Mesh | null>(null);
     const [sceneReady, setSceneReady] = useState(false);
@@ -174,7 +500,7 @@ const Globe = () => {
     const altBarRef = useRef<HTMLDivElement>(null);
     const altTextRef = useRef<HTMLDivElement>(null);
     const fpsRef = useRef<HTMLDivElement>(null);
-    const controlsRef = useRef<any>(null); // Ref for OrbitControls access
+    const controlsRef = useRef<any>(null);
     const rotationTimeout = useRef<NodeJS.Timeout | null>(null);
     const startRotationTimeout = useRef<NodeJS.Timeout | null>(null);
     const dragLockTimeout = useRef<NodeJS.Timeout | null>(null);
@@ -182,7 +508,6 @@ const Globe = () => {
 
     React.useEffect(() => {
         const setDown = () => { 
-            // Reset interaction state
             if (rotationTimeout.current) clearTimeout(rotationTimeout.current);
             if (dragLockTimeout.current) {
                 clearTimeout(dragLockTimeout.current);
@@ -192,19 +517,16 @@ const Globe = () => {
                 clearTimeout(startRotationTimeout.current);
                 startRotationTimeout.current = null;
             }
-            // Force Raycast sync
             perfState.forceCheck = true;
             perfState.isRotating = false;
             useSatelliteStore.getState().setIsCameraRotating(false);
             
-            // Lock raycasting during drag (after initial hit-test frame)
             dragLockTimeout.current = setTimeout(() => {
                 perfState.forceCheck = false;
                 perfState.isRotating = true; 
             }, 50);
         };
         const setUp = () => { 
-            // Unlock
             if (dragLockTimeout.current) {
                 clearTimeout(dragLockTimeout.current);
                 dragLockTimeout.current = null;
@@ -213,25 +535,40 @@ const Globe = () => {
                 clearTimeout(startRotationTimeout.current);
                 startRotationTimeout.current = null;
             }
-            // Force Raycast for release event
             perfState.forceCheck = true; 
             perfState.isRotating = false;
             useSatelliteStore.getState().setIsCameraRotating(false); 
         };
-
-        
         const container = containerRef.current;
         if (container) {
-            // Use Capture Phase on Container
             container.addEventListener('pointerdown', setDown, { capture: true });
             container.addEventListener('pointerup', setUp, { capture: true });
-            // Global catch for pointerup to handle drags that end outside window
             window.addEventListener('pointerup', setUp, { capture: true });
         }
 
+        perfState.isRotating = false;
+        perfState.forceCheck = false;
+        useSatelliteStore.getState().setIsCameraRotating(false);
+
+        const watchdog = setInterval(() => {
+            if (perfState.isRotating) {
+                 const isStuck = !rotationTimeout.current && !startRotationTimeout.current;
+                 if (isStuck) {
+                     perfState.isRotating = false;
+                     perfState.forceCheck = true;
+                     useSatelliteStore.getState().setIsCameraRotating(false);
+                 }
+            } else {
+                 if (useSatelliteStore.getState().isCameraRotating) {
+                     useSatelliteStore.getState().setIsCameraRotating(false);
+                 }
+            }
+        }, 500);
+
         fetchTles();
         return () => {
-            if (rotationTimeout.current) clearTimeout(rotationTimeout.current);
+             clearInterval(watchdog);
+             if (rotationTimeout.current) clearTimeout(rotationTimeout.current);
             if (container) {
                 container.removeEventListener('pointerdown', setDown, { capture: true } as any);
                 container.removeEventListener('pointerup', setUp, { capture: true } as any);
@@ -242,7 +579,6 @@ const Globe = () => {
 
     return (
         <div ref={containerRef} className="relative w-full h-full bg-black">
-             {/* ... Source HUD ... */}
              <div 
                 className="absolute top-4 left-4 z-10 bg-black/50 p-2 rounded text-white font-mono pointer-events-none border border-white/20 text-left"
                 style={{ position: 'absolute', top: '1rem', left: '1rem', zIndex: 10, backgroundColor: 'rgba(0,0,0,0.5)', color: 'white' }}
@@ -257,7 +593,7 @@ const Globe = () => {
             <AltitudeOverlay barRef={altBarRef} textRef={altTextRef} />
 
             <Canvas 
-                camera={{ position: [20, 35, 55], fov: 45, near: 0.1, far: 10000 }}
+                camera={{ position: [20, 35, 55], fov: 45, near: 0.1, far: 200000 }}
                 onPointerDown={(e) => {
                     mouseDownPos.current = { x: e.clientX, y: e.clientY };
                 }}
@@ -270,45 +606,91 @@ const Globe = () => {
                     if (dist > 5) {
                         setFocusedId(null);
                     }
-                    // Removed clearSelection() to prevent accidental deselection
-                    mouseDownPos.current = null;
+                    if (mouseDownPos.current) mouseDownPos.current = null;
                 }}
             >
                 <color attach="background" args={["#000000"]} />
                 
-                <CelestialBodies />
+                <Suspense fallback={null}>
+                    <CelestialBodies />
+                </Suspense>
                 
-                <mesh 
-                    ref={setEarthMesh}
-                    onPointerMove={(e) => e.stopPropagation()}
-                    onPointerOver={() => useSatelliteStore.getState().setHoveredId(null)}
-                    onPointerDown={(e) => {
-                        e.stopPropagation();
-                        mouseDownPos.current = { x: e.clientX, y: e.clientY };
-                    }}
-                    onPointerUp={(e) => {
-                        e.stopPropagation();
-                        if (!mouseDownPos.current) return;
-                        const dx = e.clientX - mouseDownPos.current.x;
-                        const dy = e.clientY - mouseDownPos.current.y;
-                        const dist = Math.sqrt(dx * dx + dy * dy);
-                        if (dist > 5) {
-                            setFocusedId(null);
-                        }
-                        // Removed clearSelection() to prevent accidental deselection
-                        mouseDownPos.current = null;
-                    }}
-                >
-                    <sphereGeometry args={[EARTH_RADIUS, 32, 32]} />
-                    <meshBasicMaterial color="#000" />
-                </mesh>
+                <EarthGroup>
+                    {viewMode === 'wireframe' ? (
+                        <group rotation={[0, Math.PI, 0]}>
+                           {/* ... (Wireframe Mesh) ... */}
+                            <mesh 
+                                ref={setEarthMesh}
+                                onPointerMove={(e) => e.stopPropagation()}
+                                onPointerOver={() => useSatelliteStore.getState().setHoveredId(null)}
+                                onPointerDown={(e) => {
+                                    e.stopPropagation();
+                                    mouseDownPos.current = { x: e.clientX, y: e.clientY };
+                                }}
+                                onPointerUp={(e) => {
+                                    e.stopPropagation();
+                                    if (!mouseDownPos.current) return;
+                                    const dx = e.clientX - mouseDownPos.current.x;
+                                    const dy = e.clientY - mouseDownPos.current.y;
+                                    const dist = Math.sqrt(dx * dx + dy * dy);
+                                    if (dist > 5) {
+                                        setFocusedId(null);
+                                    }
+                                    mouseDownPos.current = null;
+                                }}
+                            >
+                                <sphereGeometry args={[EARTH_RADIUS, 32, 32]} />
+                                <meshBasicMaterial color="#000" />
+                            </mesh>
 
-                {/* Lat/Lon Grid (Graticule) */}
-                <Graticule />
-
-                <WorldLines />
+                            {/* Lat/Lon Grid (Graticule) */}
+                            {showGraticule && <Graticule />}
+                            <WorldLines />
+                        </group>
+                    ) : (
+                        <Suspense fallback={null}>
+                             <RealisticEarth />
+                             {/* Realistic Graticule overlay */}
+                             {showGraticule && (
+                                 <group scale={[1.002, 1.002, 1.002]}>
+                                     <Graticule />
+                                 </group>
+                             )}
+                             {/* Keep interaction mesh invisible for picking */}
+                              <mesh 
+                                ref={setEarthMesh}
+                                visible={false} // Invisible proxy for interaction / sizing
+                                onPointerMove={(e) => e.stopPropagation()}
+                                onPointerOver={() => useSatelliteStore.getState().setHoveredId(null)}
+                                onPointerDown={(e) => {
+                                    e.stopPropagation();
+                                    mouseDownPos.current = { x: e.clientX, y: e.clientY };
+                                }}
+                                onPointerUp={(e) => {
+                                    e.stopPropagation();
+                                    if (!mouseDownPos.current) return;
+                                    const dx = e.clientX - mouseDownPos.current.x;
+                                    const dy = e.clientY - mouseDownPos.current.y;
+                                    const dist = Math.sqrt(dx * dx + dy * dy);
+                                    if (dist > 5) {
+                                        setFocusedId(null);
+                                    }
+                                    mouseDownPos.current = null;
+                                }}
+                            >
+                                <sphereGeometry args={[EARTH_RADIUS, 32, 32]} />
+                                <meshBasicMaterial color="#000" />
+                            </mesh>
+                        </Suspense>
+                    )}
+                </EarthGroup>
                 
-                <Stars radius={3000} depth={50} count={5000} factor={4} saturation={0} fade speed={1} />
+                {/* Stars Always Visible & Behind Everything */}
+                <Suspense fallback={null}>
+                    <StarField />
+                </Suspense>
+
+                {/* Lighting is handled inside CelestialBodies.tsx */}
 
                 {sceneReady && <DistanceGrid earthRef={{ current: earthMesh }} />}
                 <SceneReady onReady={setSceneReady} />
@@ -326,16 +708,16 @@ const Globe = () => {
 
                 <EffectComposer enableNormalPass={false}>
                     <Bloom 
-                        luminanceThreshold={0.18} 
+                        luminanceThreshold={0.7} 
                         mipmapBlur 
-                        intensity={0.5} 
-                        radius={0.5}
+                        intensity={0.6} 
+                        radius={0.8}
                     />
                 </EffectComposer>
 
                 <ZoomInertia controlsRef={controlsRef} />
 
-                <OrbitControls 
+                <OrbitControls
                     ref={controlsRef}
                     makeDefault
                     enablePan={false} 

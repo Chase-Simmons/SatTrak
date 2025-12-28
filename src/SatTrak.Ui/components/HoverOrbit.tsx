@@ -6,7 +6,6 @@ import * as satellite from "satellite.js";
 import { useSatelliteStore } from "../hooks/useSatelliteStore";
 import { useShallow } from 'zustand/react/shallow';
 
-// @ts-ignore
 const satLib = satellite as any;
 
 const SCALE_FACTOR = 1 / 1000;
@@ -70,9 +69,9 @@ const HoverOrbit = () => {
             <lineBasicMaterial 
                 color="#bbd3ee" 
                 transparent 
-                opacity={0.35} // Faint as requested
+                opacity={0.35}
                 linewidth={2} 
-                depthWrite={false} // Prevent depth fighting with Earth lines
+                depthWrite={false}
             />
         </line>
     );

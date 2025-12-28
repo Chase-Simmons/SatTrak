@@ -63,7 +63,7 @@ const SatelliteInstanced = () => {
     useFrame(({ clock, raycaster, pointer }) => {
         const distSq = pointer.distanceToSquared(lastPointer.current);
         lastPointer.current.copy(pointer);
-        velocitySkip.current = distSq > 0.0001;
+        velocitySkip.current = distSq > 0.002;
 
         const mesh = meshRef.current;
         const proxy = hitProxyRef.current;

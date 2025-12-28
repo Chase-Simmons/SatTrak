@@ -1,7 +1,7 @@
 "use client";
 import React, { useRef, useMemo } from "react";
 import { useFrame } from "@react-three/fiber";
-import { Billboard } from "@react-three/drei";
+import { Billboard, useTexture } from "@react-three/drei";
 import * as satellite from "satellite.js";
 import * as THREE from "three";
 
@@ -85,6 +85,8 @@ const CelestialBodies = () => {
     const outerGlowMat = useRef<THREE.ShaderMaterial>(null);
     const moonRef = useRef<THREE.Group>(null);
     const lightRef = useRef<THREE.DirectionalLight>(null);
+
+    const moonMap = useTexture('/textures/8k_moon.png');
 
     // If disabled, we still need the lights for the Earth, but we hide the bodies
     const isVisible = showCelestialBodies;
@@ -224,18 +226,19 @@ const CelestialBodies = () => {
                     />
                 </mesh>
                 {/* Inner Solid Core - StandardMaterial to react to Sun light and avoid bloom */}
-                <mesh frustumCulled={false}>
-                    <sphereGeometry args={[MOON_CORE_RADIUS, 12, 12]} />
+                <mesh frustumCulled={false} rotation={[0, -Math.PI / 2, 0]}>
+                    <sphereGeometry args={[MOON_CORE_RADIUS, 32, 32]} />
                     <meshStandardMaterial 
-                        color="#94a3b8" 
+                        map={moonMap}
+                        color="#ffffff" 
                         roughness={0.9}
                         metalness={0.0}
                     />
                 </mesh>
             </group>
             
-            {/* Ambient light for shadow areas */}
-            <ambientLight intensity={0.2} />
+            {/* Ambient light for subtle shadow detail */}
+            <ambientLight intensity={0.05} />
         </group>
     );
 };

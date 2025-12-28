@@ -30,13 +30,18 @@ interface SatelliteStore {
     showKmMarkers: boolean;
     showOrbitRanges: boolean;
     showCelestialBodies: boolean;
+    showGraticule: boolean;
 
     setShowOrbits: (show: boolean) => void;
     setShowLabels: (show: boolean) => void;
     setShowKmMarkers: (show: boolean) => void;
     setShowOrbitRanges: (show: boolean) => void;
     setShowCelestialBodies: (show: boolean) => void;
+    setShowGraticule: (show: boolean) => void;
     
+    viewMode: 'wireframe' | 'realistic';
+    setViewMode: (mode: 'wireframe' | 'realistic') => void;
+
     searchQuery: string;
     setSearchQuery: (q: string) => void;
 
@@ -68,6 +73,7 @@ export const useSatelliteStore = create<SatelliteStore>()(
             showKmMarkers: true,
             showOrbitRanges: true,
             showCelestialBodies: true,
+            showGraticule: true, // Default to true
             searchQuery: "",
             hoveredId: null,
             hoverPosition: null,
@@ -101,6 +107,10 @@ export const useSatelliteStore = create<SatelliteStore>()(
             setShowKmMarkers: (val) => set({ showKmMarkers: val }),
             setShowOrbitRanges: (val) => set({ showOrbitRanges: val }),
             setShowCelestialBodies: (val) => set({ showCelestialBodies: val }),
+            setShowGraticule: (val) => set({ showGraticule: val }),
+
+            viewMode: 'wireframe',
+            setViewMode: (mode) => set({ viewMode: mode }),
 
             setSearchQuery: (q) => set({ searchQuery: q }),
 
@@ -155,7 +165,8 @@ export const useSatelliteStore = create<SatelliteStore>()(
                 showLabels: state.showLabels,
                 showKmMarkers: state.showKmMarkers,
                 showOrbitRanges: state.showOrbitRanges,
-                showCelestialBodies: state.showCelestialBodies
+                showCelestialBodies: state.showCelestialBodies,
+                showGraticule: state.showGraticule
             }),
         }
     )
