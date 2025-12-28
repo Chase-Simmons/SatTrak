@@ -109,7 +109,7 @@ const expandedFragmentShader = /* glsl */ `
   }
 `;
 
-interface FluffyCloudsProps {
+interface CloudsProps {
   sunDirection: THREE.Vector3;
 }
 
@@ -153,7 +153,7 @@ const CloudLayerMesh: React.FC<{
 
 };
 
-const FluffyClouds: React.FC<FluffyCloudsProps> = ({ sunDirection }) => {
+const Clouds: React.FC<CloudsProps> = ({ sunDirection }) => {
   const cloudTexture = useTexture('/textures/8k_earth_clouds.png');
   
   useMemo(() => {
@@ -197,4 +197,4 @@ const FluffyClouds: React.FC<FluffyCloudsProps> = ({ sunDirection }) => {
   );
 };
 
-export default FluffyClouds;
+export default Clouds;

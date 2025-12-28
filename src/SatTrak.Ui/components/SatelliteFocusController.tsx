@@ -7,7 +7,7 @@ import * as satellite from 'satellite.js';
 const satLib = satellite as any;
 const SCALE_FACTOR = 1 / 1000;
 
-const CameraController = () => {
+const SatelliteFocusController = () => {
     const { focusedId, tles, setFocusedId } = useSatelliteStore();
     const { camera, controls } = useThree() as any;
     
@@ -94,4 +94,4 @@ const CameraController = () => {
     return null;
 };
 
-export default CameraController;
+export default SatelliteFocusController;

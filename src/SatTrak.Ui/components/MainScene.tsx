@@ -16,7 +16,7 @@ import HoverOrbit from "./HoverOrbit";
 import ZoomInertia from "./ZoomInertia";
 import DistanceGrid from "./DistanceGrid";
 import CelestialBodies from "./CelestialBodies";
-import CameraController from "./CameraController";
+import SatelliteFocusController from "./SatelliteFocusController";
 import * as THREE from "three";
 import { perfState } from "../utils/PerformanceState";
 import RealisticEarth from "./RealisticEarth";
@@ -30,7 +30,7 @@ import SceneReady from "./SceneReady";
 
 const EARTH_RADIUS = 6.371; // Normalized radius for visualization
 
-const Globe = () => {
+const MainScene = () => {
     const fetchTles = useSatelliteStore(state => state.fetchTles);
     const tles = useSatelliteStore(state => state.tles);
     const loading = useSatelliteStore(state => state.loading);
@@ -284,7 +284,7 @@ const Globe = () => {
                 <SatelliteHighlights />
                 <SatelliteLabels />
 
-                <CameraController />
+                <SatelliteFocusController />
                 <AltitudeLogic barRef={altBarRef} textRef={altTextRef} />
 
                 <ZoomInertia controlsRef={controlsRef} />
@@ -346,4 +346,4 @@ const Globe = () => {
     );
 };
 
-export default Globe;
+export default MainScene;
