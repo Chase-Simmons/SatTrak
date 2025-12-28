@@ -1,54 +1,122 @@
 import { useMemo, useRef } from "react";
 import * as THREE from "three";
+import { useFrame } from "@react-three/fiber";
 
 const EARTH_RADIUS = 6.371;
+const ATMOSPHERE_RADIUS = 6.371 * 0.98432; // User tuned radius to account for 1.025 scale mesh
+
+const ScatteringShader = {
+    uniforms: {
+        uSunPosition: { value: new THREE.Vector3(0, 0, 0) }, 
+        uViewPosition: { value: new THREE.Vector3(0, 0, 0) },
+        uAtmosphereRadius: { value: ATMOSPHERE_RADIUS },
+        uEarthRadius: { value: EARTH_RADIUS },
+        uDayColor: { value: new THREE.Color("#b3d9ff") },    // Soft sky blue (less harsh white)
+        uRimColor: { value: new THREE.Color("#1a75ff") },    // Deep Azure
+        uSunsetColor: { value: new THREE.Color("#ffaa66") }, 
+        uDensityFalloff: { value: 8.0 },                     // Smooth falloff for volumetric look
+        uIntensity: { value: 4.0 }                           // Lower intensity for better blending
+    },
+    vertexShader: `
+        varying vec3 vNormal;
+        varying vec3 vPosition;
+        varying vec3 vWorldPosition;
+
+        void main() {
+            vNormal = normalize(normalMatrix * normal);
+            vec4 worldPos = modelMatrix * vec4(position, 1.0);
+            vWorldPosition = worldPos.xyz;
+            vPosition = worldPos.xyz; 
+            gl_Position = projectionMatrix * viewMatrix * worldPos;
+        }
+    `,
+    fragmentShader: `
+        varying vec3 vNormal;
+        varying vec3 vPosition;
+        varying vec3 vWorldPosition;
+
+        uniform vec3 uSunPosition;
+        uniform vec3 uViewPosition; 
+        uniform float uAtmosphereRadius;
+        uniform float uEarthRadius;
+        uniform vec3 uDayColor;
+        uniform vec3 uRimColor;
+        uniform vec3 uSunsetColor;
+        uniform float uDensityFalloff;
+        uniform float uIntensity;
+
+        void main() {
+            vec3 viewDir = normalize(uViewPosition - vPosition);
+            vec3 normal = normalize(vNormal);
+            vec3 sunDir = normalize(uSunPosition);
+
+            // 1. View Angle & Geometry
+            float viewDot = abs(dot(normal, viewDir)); 
+            
+            // 2. Rim Calculation
+            float rim = pow(1.0 - viewDot, uDensityFalloff);
+
+            // 3. Day/Night Light Intensity
+            float sunOrientation = dot(normal, sunDir);
+            float lightIntensity = smoothstep(-0.1, 0.1, sunOrientation);
+
+            // 4. Color Gradient
+            // Linear mix for the smoothest natural transition
+            vec3 baseColor = mix(uRimColor, uDayColor, viewDot); 
+
+            // 5. Sunset Tint (Subtle)
+            float terminatorFactor = 1.0 - abs(sunOrientation); 
+            terminatorFactor = pow(terminatorFactor, 3.0); 
+            vec3 finalColor = mix(baseColor, uSunsetColor, terminatorFactor * 0.4);
+
+            // 6. Final Alpha
+            float finalAlpha = rim * lightIntensity * uIntensity;
+
+            if (finalAlpha < 0.005) discard;
+
+            gl_FragColor = vec4(finalColor, finalAlpha);
+        }
+    `
+};
 
 const Atmosphere = () => {
     const meshRef = useRef<THREE.Mesh>(null);
+    const materialRef = useRef<THREE.ShaderMaterial>(null);
 
-    const vertexShader = `
-        varying vec3 vNormal;
-        void main() {
-            vNormal = normalize(normalMatrix * normal);
-            gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+    useFrame((state) => {
+        if (materialRef.current) {
+            // Update camera position uniform
+            materialRef.current.uniforms.uViewPosition.value.copy(state.camera.position);
+            
+            // Use the shared sun direction from context or props if passed, 
+            // but relying on the uniform update from RealisticEarth parent traversal is risky 
+            // without explicit props.
+            // Ideally RealisticEarth passes the sun direction down.
+            // For now, RealisticEarth traverses and updates 'sunDirection', 
+            // but our shader uses 'uSunPosition'.
+            // HACK: Let's map 'sunDirection' uniform name in our shader to match Parent's expectation
+            // Or better, let's just stick to the shared name 'sunDirection'
         }
-    `;
+    });
 
-    const fragmentShader = `
-        varying vec3 vNormal;
-        uniform vec3 sunDirection;
-
-        void main() {
-            vec3 normal = normalize(vNormal);
-            float sunIntensity = dot(normal, normalize(sunDirection));
-            
-            // Fresnel Rim
-            float viewDot = clamp(dot(normal, vec3(0, 0, 1.0)), 0.0, 1.0);
-            float rimIntensity = pow(max(0.0, 1.0 - viewDot), 6.0);
-            
-            // Wide mask to allow natural scattering/bleeding into night side
-            float sunMask = smoothstep(-0.5, 0.5, sunIntensity);
-            
-            float finalAlpha = rimIntensity * sunMask;
-            
-            vec3 atmosphereColor = vec3(0.15, 0.45, 1.0);
-            gl_FragColor = vec4(atmosphereColor, 1.0) * finalAlpha;
-        }
-    `;
-
-    const uniforms = useMemo(() => ({
-        sunDirection: { value: new THREE.Vector3(1, 0, 0) }
+    // Re-defining shader with standard 'sunDirection' uniform name to compatibility
+    const CompatibleShader = useMemo(() => ({
+        ...ScatteringShader,
+        uniforms: {
+            ...ScatteringShader.uniforms,
+            sunDirection: { value: new THREE.Vector3(1, 0, 0) } // Renamed for compatibility
+        },
+        fragmentShader: ScatteringShader.fragmentShader.replace('uniform vec3 uSunPosition;', 'uniform vec3 sunDirection;').replace('uSunPosition', 'sunDirection')
     }), []);
 
     return (
-        <mesh ref={meshRef} scale={[1.04, 1.04, 1.04]}>
-            <sphereGeometry args={[EARTH_RADIUS, 128, 128]} />
+        <mesh ref={meshRef} scale={[1.025, 1.025, 1.025]}>
+            <sphereGeometry args={[ATMOSPHERE_RADIUS, 128, 128]} />
             <shaderMaterial
-                vertexShader={vertexShader}
-                fragmentShader={fragmentShader}
-                uniforms={uniforms}
+                ref={materialRef}
+                args={[CompatibleShader]}
                 blending={THREE.AdditiveBlending}
-                side={THREE.FrontSide}
+                side={THREE.BackSide} /* Render on Inside of slightly larger sphere for better volume illusion? No, FrontSide is better for simple shell */
                 transparent
                 depthWrite={false}
             />
