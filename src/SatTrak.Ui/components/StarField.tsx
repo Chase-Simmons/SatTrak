@@ -25,19 +25,24 @@ const StarField = () => {
                 <meshBasicMaterial 
                     map={stars} 
                     side={THREE.BackSide} 
-                    color="#444444" // Restored from #222222
+                    color="#444444" 
                     depthWrite={false}
                 />
             </mesh> 
             
-            {/* Milky Way Overlay */}
-            <mesh scale={[49000, 49000, 49000]} rotation={[1.0, 0, 0]}>
+            {/* Milky Way Overlay - HDR Boosted for Bloom */}
+            <mesh 
+                scale={[49000, 49000, 49000]} 
+                rotation={[1.0, 0, 0]}
+            >
                 <sphereGeometry args={[1, 128, 128]} />
                 <meshBasicMaterial 
                     map={milkyWay} 
                     side={THREE.BackSide} 
                     transparent 
-                    opacity={0.4} // Restored from 0.2
+                    opacity={0.5}
+                    color={[1.5, 1.5, 1.5]} // HDR color to trigger bloom
+                    toneMapped={false} // Important for glowing effects
                     depthWrite={false}
                     blending={THREE.AdditiveBlending}
                 />
