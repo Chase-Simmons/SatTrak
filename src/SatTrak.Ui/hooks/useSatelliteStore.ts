@@ -117,9 +117,9 @@ export const useSatelliteStore = create<SatelliteStore>()(
     fetchTles: async () => {
         set({ loading: true });
         try {
-            const url = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5279";
-            const res = await fetch(`${url}/api/satellites`);
-            if (!res.ok) throw new Error("Failed to fetch TLEs");
+            // FETCH FROM STATIC SNAPSHOT (For GitHub Pages)
+            const res = await fetch('/tles.json');
+            if (!res.ok) throw new Error("Failed to fetch static TLEs");
             const data = await res.json() as SatelliteTle[];
             
             const tMap = new Map<number, SatelliteTle>();
