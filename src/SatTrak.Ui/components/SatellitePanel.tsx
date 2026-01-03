@@ -335,7 +335,7 @@ const SatellitePanel = () => {
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '12px' }}>
                     <div className={styles.title}>
                         <span style={{ color: '#06b6d4' }}>SAT TRAK</span>
-                        <span style={{ color: '#64748b', fontSize: '11px', fontWeight: 500, marginLeft: '4px' }}> // MISSION CONTROL</span>
+                        <span style={{ color: '#64748b', fontSize: '11px', fontWeight: 500, marginLeft: '4px' }}></span>
                     </div>
                     <button 
                         className={styles.settingsBtn}
