@@ -118,7 +118,8 @@ export const useSatelliteStore = create<SatelliteStore>()(
         set({ loading: true });
         try {
             // FETCH FROM STATIC SNAPSHOT (For GitHub Pages)
-            const res = await fetch('/tles.json');
+            // Note: Must include basePath manually for public folder fetches
+            const res = await fetch('/SatTrak/tles.json');
             if (!res.ok) throw new Error("Failed to fetch static TLEs");
             const data = await res.json() as SatelliteTle[];
             
