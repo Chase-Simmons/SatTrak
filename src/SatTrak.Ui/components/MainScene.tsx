@@ -254,7 +254,7 @@ const MainScene = () => {
                         intensity={0.4} 
                         radius={0.8}
                     />
-                     {satMesh && (
+                     {satMesh ? (
                         <SelectiveBloom 
                             lights={[]} 
                             selection={[satMesh]} 
@@ -264,8 +264,8 @@ const MainScene = () => {
                             luminanceSmoothing={0.5}
                             mipmapBlur
                         />
-                     )}
-                    {earthBloomMesh && (
+                     ) : <></>}
+                    {earthBloomMesh ? (
                         <SelectiveBloom 
                             lights={[]} 
                             selection={[earthBloomMesh]} 
@@ -275,7 +275,7 @@ const MainScene = () => {
                             luminanceSmoothing={0.4}
                             mipmapBlur
                         />
-                    )}
+                    ) : <></>}
                 </EffectComposer>
 
                 <FpsTracker fpsRef={fpsRef} />
