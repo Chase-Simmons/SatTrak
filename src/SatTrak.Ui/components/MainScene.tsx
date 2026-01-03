@@ -132,7 +132,7 @@ const MainScene = () => {
         <div ref={containerRef} className="relative w-full h-full bg-black">
              <div 
                 className="absolute top-4 right-4 z-10 bg-black/50 p-2 rounded text-white font-mono pointer-events-none border border-white/20 text-right"
-                style={{ position: 'absolute', top: '1rem', right: '1rem', zIndex: 10, backgroundColor: 'rgba(0,0,0,0.5)', color: 'white' }}
+                style={{ position: 'absolute', top: '1rem', right: '1rem', zIndex: 10, backgroundColor: 'rgba(0,0,0,0.5)', color: 'white', display: 'none' }}
              >
                 <div ref={fpsRef} className="font-bold text-green-400">FPS: --</div>
                 <div>Source: Client-Side Propagation</div>
