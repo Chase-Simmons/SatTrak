@@ -11,6 +11,7 @@ import { useMemo, useRef } from 'react';
 import { useFrame } from '@react-three/fiber';
 import { useTexture } from '@react-three/drei';
 import * as THREE from 'three';
+import { assetUrl } from '../utils/assetPath';
 
 const EARTH_RADIUS = 6.371;
 
