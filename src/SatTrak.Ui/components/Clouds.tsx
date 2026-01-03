@@ -155,7 +155,7 @@ const CloudLayerMesh: React.FC<{
 };
 
 const Clouds: React.FC<CloudsProps> = ({ sunDirection }) => {
-  const cloudTexture = useTexture('/textures/8k_earth_clouds.png');
+  const cloudTexture = useTexture(assetUrl('/textures/8k_earth_clouds.png'));
   
   useMemo(() => {
     cloudTexture.wrapS = THREE.RepeatWrapping;
