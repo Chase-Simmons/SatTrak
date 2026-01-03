@@ -1,5 +1,6 @@
 import React from "react";
 import * as THREE from "three";
+import { assetUrl } from "../utils/assetPath";
 
 const EARTH_RADIUS = 6.371;
 
@@ -20,7 +21,7 @@ const WorldLines = () => {
     const [lines, setLines] = React.useState<Float32Array[]>([]);
   
     React.useEffect(() => {
-      fetch("/data/world.json")
+      fetch(assetUrl("/data/world.json"))
         .then((res) => res.json())
         .then((data) => {
           const lineSegments: Float32Array[] = [];

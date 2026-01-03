@@ -1,11 +1,12 @@
 import React, { useMemo } from "react";
 import * as THREE from "three";
 import { useTexture } from "@react-three/drei";
+import { assetUrl } from "../utils/assetPath";
 
 const StarField = () => {
     const [stars, milkyWay] = useTexture([
-        '/textures/8k_stars.png',
-        '/textures/8k_stars_milky_way.png'
+        assetUrl('/textures/8k_stars.png'),
+        assetUrl('/textures/8k_stars_milky_way.png')
     ]);
 
     useMemo(() => {

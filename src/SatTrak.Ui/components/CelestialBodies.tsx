@@ -4,8 +4,8 @@ import { useFrame } from "@react-three/fiber";
 import { Billboard, useTexture } from "@react-three/drei";
 import * as satellite from "satellite.js";
 import * as THREE from "three";
-
 import { useSatelliteStore } from "../hooks/useSatelliteStore";
+import { assetUrl } from "../utils/assetPath";
 const satLib = satellite as any;
 
 const SCALE_FACTOR = 1 / 1000;
@@ -135,7 +135,7 @@ const CelestialBodies = () => {
     const moonSurfaceMat = useRef<THREE.ShaderMaterial>(null); // New Surface Ref
     const lightRef = useRef<THREE.DirectionalLight>(null);
 
-    const moonMap = useTexture('/textures/8k_moon.png');
+    const moonMap = useTexture(assetUrl('/textures/8k_moon.png'));
 
     // If disabled, we still need the lights for the Earth, but we hide the bodies
     const isVisible = showCelestialBodies;
